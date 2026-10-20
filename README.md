@@ -99,12 +99,15 @@ Las unidades deben estar en el **mismo canal WiFi**; conectarlas al mismo router
 
 ## Consumo
 
-Promedios medidos con un FNIRSI FNB58 y su software oficial a 100 muestras/s (5.2 V, pantalla apagada). Las temperaturas se tomaron con termopar sobre el chip, a 21–23 °C de ambiente:
+Medido con un FNIRSI FNB58 (cargador de 5.2 V, pantalla apagada). La lectura inicial se tomó en la pantalla del medidor; los promedios, con su software oficial a 100 muestras/s. Las temperaturas se tomaron con termopar sobre el chip, a 21–23 °C de ambiente:
 
-| Firmware | Corriente | Potencia | Chip ESP32 (ambiente ~22 °C) |
-|---|---|---|---|
-| ≤ 3.3.4 | 0.160 A | 0.83 W | 37.2 °C y subiendo |
-| 3.4.0 | 0.059 A | 0.31 W | 29.1 °C estable |
+| Firmware | Medición | Corriente | Voltaje | Potencia | Chip ESP32 |
+|---|---|---|---|---|---|
+| ≤ 3.3.4 | Lectura inicial en pantalla (instante) | 0.167 A | 5.175 V | 0.866 W | 37.2 °C y subiendo |
+| ≤ 3.3.4 | Promedio grabado (80 s) | 0.160 A | 5.194 V | 0.83 W | |
+| 3.4.0 | Promedio grabado (modem sleep) | 0.059 A | 5.223 V | 0.31 W | 29.1 °C estable |
+
+Ahorro: −63 % de promedio a promedio, o −65 % tomando la lectura inicial como referencia. La pantalla del medidor marca casi siempre la base de ~0.047 A, porque la radio despierta a ~0.12 A solo el 15 % del tiempo; el promedio real es 0.059 A.
 
 El ahorro de energía WiFi (modem sleep) se desactiva solo con peers ESP-NOW o durante el descubrimiento; con la radio despierta el consumo es de 0.125 A. A cambio, el ping sube a ~150 ms, cosa que no afecta al sensor.
 
