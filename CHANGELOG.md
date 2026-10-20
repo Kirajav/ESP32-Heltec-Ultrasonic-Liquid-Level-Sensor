@@ -30,6 +30,16 @@ Ahora:
 - **Nueva página `/instalacion`**, embebida en el firmware (no hace falta subir el filesystem): distancia
   grande, registro de lecturas a 1/s y botones para activar/salir y calibrar el fondo
 
+### 🔌 Notas de hardware verificadas en campo
+
+- **AJ-SR04M:** el orden de pines viene impreso en la cara de soldaduras: `5V · RX/Trig · TX/Echo · GND`.
+  Hay que verificarlo siempre en la placa antes de conectar; invertir 5V y GND calienta el módulo.
+  Con R19 sin soldar, el módulo trabaja en modo 1 (trigger/echo), el que usa el firmware
+- **El divisor de ECHO tiene orientación:** la resistencia chica va en serie (Echo → 1 kΩ → GPIO 13) y la
+  grande a GND (GPIO 13 → 2–2.2 kΩ → GND), con lo que el GPIO recibe 3.3–3.4 V. Al revés (2.2 kΩ en serie y
+  1 kΩ a GND) solo llegan ~1.6 V, al límite del umbral lógico del ESP32: se pierden ecos de forma
+  intermitente
+
 ---
 
 ## [3.4.1] — 2026-10-20
