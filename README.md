@@ -9,7 +9,7 @@ Sistema de monitoreo de nivel de líquido (tinacos, cisternas, contenedores) bas
 - **Sensor ultrasónico** HC-SR04 (o JSN-SR04T / AJ-SR04M / US-100 / A02YYUW) con **filtro sigma**: 20 muestras, rechazo de ecos falsos (spike guard) y de valores fuera de μ±kσ
 - **Detección de estabilidad** y failsafe anti-desbordamiento cuando el agua entra en la zona ciega
 - **Intervalos adaptativos** y detección de llenado/vaciado
-- **Bajo consumo**: ~0.045 A a 5 V (~0.24 W) gracias a modem sleep WiFi, CPU a 80 MHz y loop con idle
+- **Bajo consumo**: 0.059 A a 5.2 V (0.31 W) en reposo, −63 % frente a 3.3.4, gracias a modem sleep WiFi, CPU a 80 MHz y loop con idle
 - **Dashboard web** con visualización SVG animada (tanque, cisterna, IBC) e historial
 - **Portal cautivo** multilenguaje (ES/EN/FR) para la configuración inicial
 - **MQTT / Home Assistant** local con Auto-Discovery (sensores + switch "Bomba de Agua"), reconexión automática
@@ -99,14 +99,16 @@ Las unidades deben estar en el **mismo canal WiFi**; conectarlas al mismo router
 
 ## Consumo
 
-Medido con un FNIRSI FNB58 a 5.2 V, pantalla apagada:
+Promedios medidos con un FNIRSI FNB58 y su software oficial a 100 muestras/s (5.2 V, pantalla apagada). Las temperaturas se tomaron con termopar sobre el chip, a 21–23 °C de ambiente:
 
 | Firmware | Corriente | Potencia | Chip ESP32 (ambiente ~22 °C) |
 |---|---|---|---|
-| ≤ 3.3.4 | 0.167 A | 0.87 W | 37 °C y subiendo |
-| 3.4.0 | ~0.045 A | ~0.24 W | 29 °C estable |
+| ≤ 3.3.4 | 0.160 A | 0.83 W | 37.2 °C y subiendo |
+| 3.4.0 | 0.059 A | 0.31 W | 29.1 °C estable |
 
-El ahorro de energía WiFi (modem sleep) se desactiva solo con peers ESP-NOW o durante el descubrimiento. A cambio, el ping sube a ~150 ms, cosa que no afecta al sensor.
+El ahorro de energía WiFi (modem sleep) se desactiva solo con peers ESP-NOW o durante el descubrimiento; con la radio despierta el consumo es de 0.125 A. A cambio, el ping sube a ~150 ms, cosa que no afecta al sensor.
+
+Perfil de corriente por proceso (arranque, lectura, ping, HTTP, OLED, ESP-NOW), temperaturas y datos crudos: [wiki: Consumo y perfil de corriente](https://github.com/Kirajav/ESP32-Heltec-Ultrasonic-Liquid-Level-Sensor/wiki/Consumo-y-Perfil-de-Corriente).
 
 ## API REST (resumen)
 

@@ -8,16 +8,16 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
 ## [3.4.0] — 2026-10-19
 
-Consumo y calentamiento reducidos ~72%, MQTT que se reconecta solo, hora correcta
+Consumo y calentamiento reducidos 63 %, MQTT que se reconecta solo, hora correcta
 para México y ESP-NOW que por fin empareja unidades.
 
-### 🌡️ Consumo y calentamiento (medido con FNIRSI FNB58 y termopar)
+### 🌡️ Consumo y calentamiento (FNIRSI FNB58 + UsbMeter a 100 sps, y termopar; [detalle](https://github.com/Kirajav/ESP32-Heltec-Ultrasonic-Liquid-Level-Sensor/wiki/Consumo-y-Perfil-de-Corriente))
 
 | | Antes | Después |
 |---|---|---|
-| Corriente a 5.2 V (pantalla apagada) | 0.167 A | ~0.045 A |
-| Potencia | 0.87 W | ~0.24 W |
-| Chip ESP32 (ambiente ~22 °C) | 37 °C y subiendo | 29 °C estable |
+| Corriente promedio a 5.2 V (pantalla apagada) | 0.160 A | 0.059 A |
+| Potencia | 0.83 W | 0.31 W |
+| Chip ESP32 (ambiente 21–23 °C, termopar) | 37.2 °C y subiendo | 29.1 °C estable |
 
 - **`loop()` sin pausa**: `yield()` no deja correr al idle task, así que el Core 1
   giraba al 100%. Ahora `delay(10)` permite que la CPU duerma entre iteraciones
