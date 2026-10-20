@@ -4,7 +4,7 @@
 #include <freertos/task.h>
 
 LiquidLevelSensor::LiquidLevelSensor(uint8_t triggerPin, uint8_t echoPin, ApplicationConfig* configManager)
-    : m_distanceSensor(triggerPin, echoPin), m_configManager(configManager), m_distanciaCm(-1.0),
+    : m_distanceSensor(triggerPin, echoPin), m_echoPin(echoPin), m_configManager(configManager), m_distanciaCm(-1.0),
       m_lastValidDistanceCm(-1.0), m_consecutiveErrors(0), m_mensajeError("No_init"),
       m_lastTotalSamples(0), m_lastValidCount(0), m_lastSpikeRejected(0),
       m_lastMean(0), m_lastStdDev(0), m_lastSigmaRejected(0),
@@ -21,10 +21,18 @@ LiquidLevelSensor::LiquidLevelSensor(uint8_t triggerPin, uint8_t echoPin, Applic
 }
 
 bool LiquidLevelSensor::begin() {
-    // La librería HCSR04 no requiere un método begin(),
-    // la inicialización se hace en el constructor.
+    // La librería HCSR04 configura los pines en su constructor (ECHO como INPUT).
+    // Pull-down: con el sensor desconectado el pin flotaba, captaba ruido y daba
+    // "lecturas" de ~0 cm que se reportaban como tinaco LLENO.
+    pinMode(m_echoPin, INPUT_PULLDOWN);
     m_mensajeError = "OK";
     return true;
+}
+
+// Una muestra; < MIN_VALID_CM es físicamente imposible (mínimo real ~2 cm): sin eco
+float LiquidLevelSensor::measureOnce() {
+    float raw = m_distanceSensor.measureDistanceCm();
+    return (raw >= 0 && raw < MIN_VALID_CM) ? -1.0f : raw;
 }
 
 void LiquidLevelSensor::update() {
@@ -195,13 +203,13 @@ float LiquidLevelSensor::measureSigmaFiltered() {
     uint8_t validCount = 0;
     
     for (uint8_t i = 0; i < N; i++) {
-        float raw = m_distanceSensor.measureDistanceCm();
+        float raw = measureOnce();
         if (raw < 0) {
             // Reintento único: se observó un patrón alterno sin eco (E,O,E,O...).
             // rt/rr en /api/last-readings dicen si el fallo es por disparo o persistente
             m_lastRetryCount++;
             vTaskDelay(pdMS_TO_TICKS(SAMPLE_RETRY_DELAY_MS));
-            raw = m_distanceSensor.measureDistanceCm();
+            raw = measureOnce();
             if (raw >= 0) m_lastRetryRecovered++;
         }
         m_lastRawSamples[i] = raw;

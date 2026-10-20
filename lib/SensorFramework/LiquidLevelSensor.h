@@ -47,6 +47,9 @@ public:
 
 private:
     UltraSonicDistanceSensor m_distanceSensor;
+    uint8_t m_echoPin;
+    static constexpr float MIN_VALID_CM = 1.0f;  // Ningún ultrasónico mide < ~2 cm
+    float measureOnce();
     ApplicationConfig* m_configManager;
     float m_distanciaCm;
     float m_lastValidDistanceCm;    // Última distancia válida (para recuperación en rango mínimo)

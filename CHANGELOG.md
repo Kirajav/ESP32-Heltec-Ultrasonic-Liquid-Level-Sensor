@@ -6,6 +6,19 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
 ---
 
+## [3.4.1] — 2026-10-20
+
+### 🐛 Fix: sensor desconectado se reportaba como tinaco LLENO
+
+- Con el sensor desconectado (conector flojo), el pin ECHO (GPIO 13) quedaba flotando, captaba
+  ruido y producía muestras de ~0 cm. El filtro las aceptaba y el firmware reportaba **100 %**
+  ("Conectado") a Home Assistant en lugar de "Error de lectura"
+- ECHO ahora usa `INPUT_PULLDOWN`, y las muestras de menos de 1 cm (imposibles para un ultrasónico)
+  se tratan como "sin eco"
+- Detectado en la unidad de la azotea (AJ-SR04M) al desconectar el módulo
+
+---
+
 ## [3.4.0] — 2026-10-19
 
 Consumo y calentamiento reducidos 63 %, MQTT que se reconecta solo, hora correcta

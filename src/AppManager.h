@@ -20,7 +20,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-#define FIRMWARE_VERSION "3.4.0"
+#define FIRMWARE_VERSION "3.4.1"
 
 class AppManager {
 public:

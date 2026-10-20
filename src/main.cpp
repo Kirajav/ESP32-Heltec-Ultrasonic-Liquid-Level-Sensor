@@ -30,7 +30,7 @@
  * obtener información detallada de debugging en Serial Monitor.
  * 
  * @author: Sistema IoT ESP32 Team
- * @version: 3.4.0
+ * @version: 3.4.1
  * @date: Octubre 2026
  * @hardware: ESP32 Heltec WiFi Kit 32 (con OLED integrado)
  * @framework: Arduino Core para ESP32 v2.0+
@@ -99,7 +99,7 @@ void setup() {
     Serial.println();
     Serial.println("████████████████████████████████████████████████████████");
     Serial.println("█                                                      █");
-    Serial.println("█       ESP32 LIQUID LEVEL SENSOR SYSTEM v3.4         █");
+    Serial.println("█       ESP32 LIQUID LEVEL SENSOR SYSTEM v3.4.1       █");
     Serial.println("█              Enterprise Architecture                 █");
     Serial.println("█                                                      █");
     Serial.println("████████████████████████████████████████████████████████");
