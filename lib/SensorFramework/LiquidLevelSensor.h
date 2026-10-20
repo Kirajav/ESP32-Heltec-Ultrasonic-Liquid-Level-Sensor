@@ -30,6 +30,14 @@ public:
     // Máximo de muestras soportado (arrays estáticos)
     static const uint8_t MAX_SIGMA_SAMPLES = 30;
     
+    // Modo instalación: lectura cruda rápida (mediana de pocas muestras), sin spike guard,
+    // sigma ni estabilidad, y sin modificar el estado del filtro. -1 si no hay eco.
+    float measureRawQuick(uint8_t samples = RAW_QUICK_SAMPLES);
+    // Borra el estado del filtro (historial, spike guard, failsafe) tras mover el sensor.
+    // seedDistanceCm: última distancia cruda medida (referencia inicial), o -1.
+    void resetFilterState(float seedDistanceCm);
+    static const uint8_t RAW_QUICK_SAMPLES = 5;
+
     // Acceso a detalles de la última medición (para monitor verbose)
     String getLastMeasurementDetails() const;
 
@@ -49,6 +57,7 @@ private:
     UltraSonicDistanceSensor m_distanceSensor;
     uint8_t m_echoPin;
     static constexpr float MIN_VALID_CM = 1.0f;  // Ningún ultrasónico mide < ~2 cm
+    static constexpr uint16_t RAW_SAMPLE_DELAY_MS = 60; // Ciclo mínimo HC-SR04 / AJ-SR04M
     float measureOnce();
     ApplicationConfig* m_configManager;
     float m_distanciaCm;

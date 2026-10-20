@@ -6,6 +6,32 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
 ---
 
+## [3.4.2] — 2026-10-20
+
+### 🔧 Modo instalación: distancia cruda de verdad
+
+El modo instalación sirve para posicionar el sensor y medir el fondo mientras se monta. Antes
+pasaba por el mismo filtro que las lecturas normales, y eso fallaba justo al mover la sonda:
+
+- El spike guard rechazaba cambios de más de 30 cm ("ERROR" o valor viejo durante hasta 3 lecturas)
+- El movimiento se tomaba como inestabilidad y, tras ~10 lecturas, el failsafe mostraba la distancia
+  mínima ("Lleno (seguridad)") en lugar de la real
+- Cada lectura tardaba 3–6 s (10–20 muestras × 300 ms)
+- Al salir, el estado "inestable" seguía activo y la primera lectura normal llegaba hasta 120 s después
+
+Ahora:
+
+- **Lectura cruda rápida:** mediana de 5 muestras a 60 ms, sin spike guard, sigma ni estabilidad,
+  y sin tocar el estado del filtro. ~1 lectura/s en OLED, WebSerial, Serial y `/api/sensor-data`
+  (que en este modo solo reporta la distancia)
+- **Al salir:** se borra el estado del filtro (sin referencia para el spike guard) y el historial de flujo;
+  la última distancia cruda se muestra mientras se hace, de inmediato, una lectura normal
+- **Calibrar fondo** en modo instalación usa la distancia cruda actual
+- **Nueva página `/instalacion`**, embebida en el firmware (no hace falta subir el filesystem): distancia
+  grande, registro de lecturas a 1/s y botones para activar/salir y calibrar el fondo
+
+---
+
 ## [3.4.1] — 2026-10-20
 
 ### 🐛 Fix: sensor desconectado se reportaba como tinaco LLENO

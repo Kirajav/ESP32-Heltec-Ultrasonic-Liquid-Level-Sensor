@@ -75,6 +75,7 @@ Después de configurar WiFi:
 | WebSerial | `http://[IP]/webserial` |
 | Administración ESP-NOW (Escanear) | `http://[IP]/espnow-manager` |
 | Dashboard multi-sensor | `http://[IP]/espnow_dashboard` |
+| Instalación (distancia cruda ~1/s) | `http://[IP]/instalacion` |
 
 ## Home Assistant (MQTT)
 

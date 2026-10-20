@@ -16,6 +16,39 @@ static const unsigned long WIFI_SCAN_INTERVAL = 3000; // 3 segundos mínimo entr
 
 // Código de download mode removido - no es necesario
 
+// Página /instalacion: distancia cruda ~1 lectura/s, sin dependencias externas
+static const char INSTALL_PAGE_HTML[] PROGMEM = R"HTML(<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Modo instalación</title><style>
+:root{--bg:#fcfcfb;--fg:#0b0b0b;--mut:#52514e;--acc:#2a78d6;--bd:#e1e0d9}
+@media(prefers-color-scheme:dark){:root{--bg:#1a1a19;--fg:#f0efec;--mut:#c3c2b7;--acc:#3987e5;--bd:#2c2c2a}}
+body{margin:0;padding:16px;font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg)}
+h1{font-size:18px;margin:0 0 4px}.m{color:var(--mut);font-size:13px}
+#d{font-size:64px;font-weight:600;margin:16px 0 4px;font-variant-numeric:tabular-nums}
+button{font-size:16px;padding:10px 14px;margin:8px 8px 0 0;border-radius:8px;border:1px solid var(--bd);background:var(--acc);color:#fff}
+button.s{background:transparent;color:var(--fg)}
+#log{margin-top:16px;font:13px ui-monospace,monospace;max-height:50vh;overflow:auto;border-top:1px solid var(--bd);padding-top:8px}
+</style></head><body>
+<h1>Modo instalación</h1><div class="m">Distancia cruda del sensor, sin filtro ni cálculos (~1 lectura/s)</div>
+<div id="d">--</div><div class="m" id="st">conectando…</div>
+<button id="t" onclick="tg()">Activar modo instalación</button><button class="s" onclick="cal()">Calibrar fondo con esta distancia</button>
+<div id="log"></div>
+<script>
+let last=-1;
+function $(i){return document.getElementById(i)}
+async function poll(){try{const j=await (await fetch('/api/sensor-data')).json();
+$('t').textContent=j.installationMode?'Salir del modo instalación':'Activar modo instalación';
+if(!j.installationMode){$('st').textContent='Modo normal: actívalo para ver la distancia cruda';return}
+if(j.readingId===last)return;last=j.readingId;
+const t=j.time||new Date().toLocaleTimeString();const v=j.estadoSensor==='Esperando'?'…':(j.estadoSensor==='Sin eco'?'sin eco':Number(j.distancia).toFixed(1)+' cm');
+$('d').textContent=v;$('st').textContent='Lectura #'+last+' · '+t;
+const l=$('log');l.insertAdjacentHTML('afterbegin','<div>'+t+'  '+v+'</div>');while(l.children.length>60)l.lastChild.remove()}
+catch(e){$('st').textContent='sin conexión con el ESP32'}}
+async function tg(){await fetch('/api/installation-mode',{method:'POST'});last=-1;poll()}
+async function cal(){if(!confirm('¿Guardar la distancia actual como fondo del contenedor vacío?'))return;
+const j=await (await fetch('/api/calibrate-bottom',{method:'POST'})).json();alert(j.message||'Listo')}
+setInterval(poll,1000);poll();
+</script></body></html>)HTML";
+
 AppManager::AppManager() {
     Serial.println("AppManager iniciado");
     wifi_connected = false;
@@ -434,6 +467,33 @@ void AppManager::openEspNowDiscovery() {
     Serial.println("🔍 ESP-NOW: ventana de descubrimiento abierta (3 min)");
 }
 
+// Entrar/salir del modo instalación (dashboard, WebSerial o /instalacion)
+void AppManager::setInstallationMode(bool on) {
+    if (on == _installationMode) return;
+    if (on) {
+        _liveMonitorEnabled = false;
+        _installRawCm = INSTALL_WAITING;  // Aún sin lectura cruda (no confundir con "sin eco")
+        _installationMode = true;
+        Serial.println("🔧 Modo instalacion ACTIVADO: distancia cruda ~1/s");
+        return;
+    }
+    _installationMode = false;
+    // El sensor se movió: limpiar el filtro (historial, spike guard, failsafe) partiendo de la
+    // última distancia cruda, y leer de inmediato en vez de esperar el intervalo normal
+    if (_liquidSensor) _liquidSensor->resetFilterState(_installRawCm);
+    _resetFlowHistory = true;
+    _forceSensorRead = true;
+    updateSensorDisplay(true);
+    display_manager.enableAutoSleep(true);
+    Serial.println("✅ Modo instalacion DESACTIVADO: filtro reiniciado, lectura inmediata");
+}
+
+// Distancia para calibrar el fondo: la cruda en modo instalación, la filtrada si no
+float AppManager::calibrationDistance() {
+    if (_installationMode) return _installRawCm;
+    return (_liquidSensor && _liquidSensor->hasValidReading()) ? _liquidSensor->getDistance() : -1.0f;
+}
+
 // ============================================================
 // FreeRTOS Task para HA MQTT (Core 0, no bloquea el loop principal)
 // ============================================================
@@ -565,6 +625,13 @@ void AppManager::setupSmartRoutes() {
         }
     });
     
+    // ===== PÁGINA DE INSTALACIÓN (embebida en el firmware) =====
+    // Distancia cruda ~1 lectura/s para posicionar el sensor. Va en el firmware para no
+    // tener que subir el filesystem (eso borraría WiFi/MQTT de /config.json)
+    server.on("/instalacion", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(200, "text/html", INSTALL_PAGE_HTML);
+    });
+
     // ===== PÁGINAS ESP-NOW =====
     // Sus index.html nunca tuvieron ruta: el botón multi-sensor del dashboard y los
     // enlaces de regreso daban 404
@@ -1261,15 +1328,8 @@ void AppManager::setupConditionalRoutes() {
             request->send(404, "text/plain", "Solo disponible en modo sensor");
             return;
         }
-        _installationMode = !_installationMode;
-        if (_installationMode) {
-            _liveMonitorEnabled = false; // Desactivar monitor normal
-        } else {
-            // Al salir del modo instalación, redibujar pantalla con datos en RAM (sin nueva lectura)
-            updateSensorDisplay(true);
-            display_manager.enableAutoSleep(true);
-        }
-        String json = "{\"installationMode\":" + String(_installationMode ? "true" : "false");
+        setInstallationMode(!_installationMode);
+String json = "{\"installationMode\":" + String(_installationMode ? "true" : "false");
         json += ",\"message\":\"Modo instalacion " + String(_installationMode ? "activado" : "desactivado") + "\"}";
         request->send(200, "application/json", json);
         Serial.println(_installationMode ? "🔧 Modo instalacion ACTIVADO (dashboard)" : "✅ Modo instalacion DESACTIVADO (dashboard)");
@@ -1284,8 +1344,8 @@ void AppManager::setupConditionalRoutes() {
         Serial.println("Calibrando fondo del contenedor...");
         
         // Usar la última lectura válida en RAM (no bloquear con sensor_manager.update)
-        if (_liquidSensor && _liquidSensor->hasValidReading()) {
-            float d = _liquidSensor->getDistance();
+        if (calibrationDistance() >= 0) {
+            float d = calibrationDistance();
             if (d > 0) {
                 float oldMaxH = config_manager.getMaxHeight();
                 config_manager.setMaxHeight(d);
@@ -1771,11 +1831,11 @@ void AppManager::initializeServices() {
                 vTaskDelay(pdMS_TO_TICKS(500)); // Dar tiempo al WebSocket de enviar
                 ESP.restart();
             } else if (command == "instalar" || command == "install") {
-                _installationMode = !_installationMode;
+                setInstallationMode(!_installationMode);
                 if (_installationMode) {
-                    _liveMonitorEnabled = false;
                     output += "🔧 MODO INSTALACION ACTIVADO\n";
-                    output += "Lecturas RAW de distancia cada 1s\n";
+                    output += "Distancia cruda (sin filtro ni cálculos) ~1 lectura/s\n";
+                    output += "También en http://" + WiFi.localIP().toString() + "/instalacion\n";
                     output += "Posicione el sensor en la tapa del contenedor\n";
                     output += "Escribe 'instalar' para salir del modo\n";
                     output += "---\n";
@@ -1787,16 +1847,14 @@ void AppManager::initializeServices() {
                     }
                 } else {
                     output += "✅ Modo instalacion DESACTIVADO\n";
-                    output += "Volviendo a modo sensor normal";
-                    updateSensorDisplay(true); // Usar datos en RAM
-                    display_manager.enableAutoSleep(true);
+                    output += "Filtro reiniciado; lectura normal inmediata";
                 }
             } else if (command == "calibrar" || command == "calibrate") {
                 // Calibrar fondo usando la última lectura válida en RAM (sin bloquear)
                 output += "📐 CALIBRANDO FONDO DEL CONTENEDOR...\n";
                 
-                if (_liquidSensor && _liquidSensor->hasValidReading()) {
-                    float d = _liquidSensor->getDistance();
+                if (calibrationDistance() >= 0) {
+                    float d = calibrationDistance();
                     if (d > 0) {
                         float oldMaxH = config_manager.getMaxHeight();
                         config_manager.setMaxHeight(d);
@@ -2066,27 +2124,33 @@ void AppManager::loop() {
         static bool isFillingDetected = false;
         static bool isDrainingDetected = false;
         
-        // ===== MODO INSTALACIÓN: lecturas RAW de distancia cada 1s =====
+        // Tras salir del modo instalación: el historial de flujo es de antes de mover el sensor
+        if (_resetFlowHistory) {
+            memset(lastReadings, 0, sizeof(lastReadings));
+            readingIndex = 0;
+            isFillingDetected = false;
+            isDrainingDetected = false;
+            _resetFlowHistory = false;
+        }
+
+        // ===== MODO INSTALACIÓN: distancia cruda ~1 lectura/s =====
+        // Mediana de 5 muestras rápidas, sin spike guard / sigma / estabilidad: el sensor
+        // se está moviendo y el filtro rechazaría los cambios o activaría el failsafe
         if (_installationMode) {
-            if (millis() - lastSensorRead > 1000) {
-                sensor_manager.update();
+            if (millis() - lastSensorRead > INSTALL_READ_INTERVAL_MS) {
+                float d = _liquidSensor ? _liquidSensor->measureRawQuick() : -1.0f;
+                _installRawCm = d;
                 _sensorReadingId++;
-                yield();
-                // Acceso directo sin JSON roundtrip
-                if (_liquidSensor) {
-                    float d = _liquidSensor->getDistance();
-                    String line = "Dist: " + String(d, 1) + " cm {Inst}";
-                    if (d < 0) line = "Dist: ERROR {Inst}";
-                    WebSerial.println(line);
-                    Serial.println(line);
-                    updateInstallationDisplay(d);
-                }
+                String line = (d < 0) ? String("Dist: SIN ECO {Inst}") : "Dist: " + String(d, 1) + " cm {Inst}";
+                WebSerial.println(line);
+                Serial.println(line);
+                updateInstallationDisplay(d);
                 lastSensorRead = millis();
             }
             yield();
             return; // No ejecutar lógica normal del sensor
         }
-        
+
         // Obtener configuración de intervalos
         SensorConfig sensorConfig = config_manager.getSensorConfig();
         uint32_t currentInterval;
@@ -2110,9 +2174,10 @@ void AppManager::loop() {
         // Primera lectura inmediata al arrancar: antes había que esperar un intervalo
         // completo (120s) y la pantalla quedaba en "Leyendo sensor..." hasta entonces
         static bool firstReadDone = false;
-        if (!firstReadDone || millis() - lastSensorRead > currentInterval) {
+        if (!firstReadDone || _forceSensorRead || millis() - lastSensorRead > currentInterval) {
             firstReadDone = true;
-            // Leer timestamp NTP si disponible
+            _forceSensorRead = false;
+// Leer timestamp NTP si disponible
             String timeStr = "";
             if (ntpSync && ntpSync->isReady()) {
                 timeStr = ntpSync->getCurrentDateTimeString();
@@ -2403,7 +2468,29 @@ void AppManager::handleWiFiResults(AsyncWebServerRequest *request) {
 void AppManager::handleSensorData(AsyncWebServerRequest *request) {
     // Obtener datos REALES del sensor - usar buffer fijo para evitar fragmentación heap
     char jsonBuf[448];
-    
+
+    if (_installationMode) {
+        // Solo la distancia cruda: el sensor se está instalando, no hay cálculos
+        float d = _installRawCm;
+        int len = snprintf(jsonBuf, sizeof(jsonBuf),
+            "{\"litros\":0,\"distancia\":%.1f,\"porcentaje\":0,\"estadoSensor\":\"%s\","
+            "\"sensorEstable\":true,\"readingId\":%lu,",
+            d < 0 ? 0.0f : d, d <= INSTALL_WAITING ? "Esperando" : (d < 0 ? "Sin eco" : "Instalacion"),
+            (unsigned long)_sensorReadingId);
+        if (ntpSync && ntpSync->isReady()) {
+            String tm = ntpSync->getTimeWithMsString();
+            len += snprintf(jsonBuf + len, sizeof(jsonBuf) - len, "\"time\":\"%s\",", tm.c_str());
+        }
+        snprintf(jsonBuf + len, sizeof(jsonBuf) - len,
+            "\"pumpActive\":%s,\"installationMode\":true,\"displaySleeping\":%s,\"autoSleepEnabled\":%s,\"timestamp\":%lu}",
+            _forceFillingMode ? "true" : "false",
+            display_manager.isDisplaySleeping() ? "true" : "false",
+            display_manager.isAutoSleepEnabled() ? "true" : "false",
+            millis());
+        request->send(200, "application/json", jsonBuf);
+        return;
+    }
+
     if (_liquidSensor && _liquidSensor->hasValidReading()) {
         float distancia = _liquidSensor->getDistance();
         float porcentaje = _liquidSensor->getPercentage();

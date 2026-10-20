@@ -1,5 +1,6 @@
 #include "LiquidLevelSensor.h"
 #include <ArduinoJson.h>
+#include <algorithm>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -33,6 +34,61 @@ bool LiquidLevelSensor::begin() {
 float LiquidLevelSensor::measureOnce() {
     float raw = m_distanceSensor.measureDistanceCm();
     return (raw >= 0 && raw < MIN_VALID_CM) ? -1.0f : raw;
+}
+
+float LiquidLevelSensor::measureRawQuick(uint8_t samples) {
+    const uint8_t n = (samples > MAX_SIGMA_SAMPLES) ? MAX_SIGMA_SAMPLES : samples;
+    float valid[MAX_SIGMA_SAMPLES];
+    uint8_t count = 0;
+
+    // Solo se actualizan los datos de diagnóstico (/api/last-readings), no el filtro
+    m_lastTotalSamples = n;
+    m_lastSpikeRejected = 0;
+    m_lastSigmaRejected = 0;
+    m_lastRetryCount = 0;
+    m_lastRetryRecovered = 0;
+    memset(m_lastSpikeFlags, 0, sizeof(m_lastSpikeFlags));
+    memset(m_lastSigmaFlags, 0, sizeof(m_lastSigmaFlags));
+
+    for (uint8_t i = 0; i < n; i++) {
+        float raw = measureOnce();
+        m_lastRawSamples[i] = raw;
+        if (raw >= 0 && raw <= 400) valid[count++] = raw;
+        if (i < n - 1) vTaskDelay(pdMS_TO_TICKS(RAW_SAMPLE_DELAY_MS));
+    }
+
+    m_lastValidCount = count;
+    m_lastSurvivorCount = count;
+    m_lastStdDev = 0;
+    if (count == 0) {
+        m_lastMean = 0;
+        m_lastFinalAvg = -1;
+        return -1.0f;
+    }
+    std::sort(valid, valid + count);
+    float median = (count % 2) ? valid[count / 2] : (valid[count / 2 - 1] + valid[count / 2]) / 2.0f;
+    memcpy(m_lastSurvivors, valid, count * sizeof(float));
+    m_lastMean = median;
+    m_lastFinalAvg = median;
+    return median;
+}
+
+void LiquidLevelSensor::resetFilterState(float seedDistanceCm) {
+    float seed = (seedDistanceCm >= 0) ? seedDistanceCm : -1.0f;
+    m_distanciaCm = seed;               // Mostrar la posición final mientras llega la lectura filtrada
+    // Sin referencia de spike guard: si algo tapaba la sonda al salir del modo, una
+    // referencia cruda equivocada rechazaría las lecturas buenas durante varios ciclos
+    m_lastValidDistanceCm = -1.0f;
+    m_consecutiveErrors = 0;
+    m_consecutiveSpikeRejects = 0;
+    memset(m_readingHistory, 0, sizeof(m_readingHistory));
+    m_historyIndex = 0;
+    m_historyCount = 0;
+    m_consecutiveUnstable = 0;
+    m_consecutiveStable = 0;
+    m_sensorUnstable = false;
+    m_failsafeActive = false;
+    m_mensajeError = (seed >= 0) ? "OK" : "Sin lectura";
 }
 
 void LiquidLevelSensor::update() {

@@ -20,7 +20,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-#define FIRMWARE_VERSION "3.4.1"
+#define FIRMWARE_VERSION "3.4.2"
 
 class AppManager {
 public:
@@ -114,6 +114,13 @@ private:
     // Modo instalación: lecturas raw de distancia para posicionar el sensor
     volatile bool _installationMode = false;
     void updateInstallationDisplay(float distancia);
+    static constexpr unsigned long INSTALL_READ_INTERVAL_MS = 700; // + ~0.3 s de muestreo = ~1 lectura/s
+    static constexpr float INSTALL_WAITING = -2.0f; // _installRawCm antes de la primera lectura cruda
+    volatile float _installRawCm = -1.0f;      // Última distancia cruda en modo instalación (-1 = sin eco)
+    volatile bool _forceSensorRead = false;    // Lectura normal inmediata (al salir del modo)
+    volatile bool _resetFlowHistory = false;   // Borrar historial de flujo (al salir del modo)
+    void setInstallationMode(bool on);
+    float calibrationDistance();
     
     // Modo llenado forzado (toggle via WebSerial)
     volatile bool _forceFillingMode = false;
