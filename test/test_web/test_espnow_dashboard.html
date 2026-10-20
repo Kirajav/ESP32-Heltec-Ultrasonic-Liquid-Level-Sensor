@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit Tests - ESP-NOW Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .test-pass {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            color: #155724;
+        }
+        .test-fail {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            color: #721c24;
+        }
+        .summary {
+            font-size: 1.2em;
+            font-weight: bold;
+            padding: 15px;
+            text-align: center;
+            border-radius: 8px;
+        }
+        .summary.pass {
+            background: #28a745;
+            color: white;
+        }
+        .summary.fail {
+            background: #dc3545;
+            color: white;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Unit Tests - ESP-NOW Dashboard</h1>
+        <p>Tests para las funciones del dashboard ESP-NOW (gestión de slaves)</p>
+        <button onclick="runAllTests()">▶️ Ejecutar Tests</button>
+    </div>
+    
+    <div id="results"></div>
+    <div id="summary"></div>
+
+    <script>
+        // ====================================================================
+        // FUNCIONES DEL ESP-NOW DASHBOARD (simuladas para testing)
+        // ====================================================================
+        
+        function validateMACAddress(mac) {
+            if (!mac || typeof mac !== 'string') return false;
+            // Formato: AA:BB:CC:DD:EE:FF
+            const macRegex = /^([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2})$/;
+            return macRegex.test(mac);
+        }
+        
+        function parseMACAddress(mac) {
+            return mac.toUpperCase().replace(/[^0-9A-F]/g, '');
+        }
+        
+        function formatMACAddress(mac) {
+            // Asume entrada sin separadores: AABBCCDDEEFF
+            if (!mac || mac.length !== 12) return 'Invalid MAC';
+            return mac.match(/.{2}/g).join(':').toUpperCase();
+        }
+        
+        function parseSlaveData(jsonString) {
+            try {
+                const data = JSON.parse(jsonString);
+                if (!data.mac || !data.type) {
+                    throw new Error('Missing required fields');
+                }
+                return {
+                    mac: data.mac,
+                    type: data.type,
+                    distance: data.distance || 0,
+                    percentage: data.percentage || 0,
+                    rssi: data.rssi || -100,
+                    lastSeen: data.lastSeen || Date.now()
+                };
+            } catch (e) {
+                throw new Error('Invalid slave data JSON');
+            }
+        }
+        
+        function isSlaveOnline(lastSeen, timeoutMs = 30000) {
+            const now = Date.now();
+            return (now - lastSeen) < timeoutMs;
+        }
+        
+        function getSlaveStatus(lastSeen) {
+            if (isSlaveOnline(lastSeen, 10000)) return 'online';    // <10s
+            if (isSlaveOnline(lastSeen, 30000)) return 'warning';   // 10-30s
+            return 'offline';  // >30s
+        }
+        
+        function calculateAverageDistance(slaves) {
+            if (!slaves || slaves.length === 0) return 0;
+            const sum = slaves.reduce((acc, slave) => acc + (slave.distance || 0), 0);
+            return parseFloat((sum / slaves.length).toFixed(2));
+        }
+        
+        function findSlaveByMAC(slaves, mac) {
+            return slaves.find(slave => slave.mac.toUpperCase() === mac.toUpperCase());
+        }
+        
+        function sortSlavesByRSSI(slaves) {
+            return slaves.sort((a, b) => b.rssi - a.rssi);
+        }
+        
+        function filterOnlineSlaves(slaves) {
+            return slaves.filter(slave => isSlaveOnline(slave.lastSeen));
+        }
+        
+        function createSlavePayload(mac, action) {
+            if (!validateMACAddress(mac)) {
+                throw new Error('Invalid MAC address');
+            }
+            if (!['add', 'remove', 'update'].includes(action)) {
+                throw new Error('Invalid action');
+            }
+            return JSON.stringify({
+                mac: mac,
+                action: action,
+                timestamp: Date.now()
+            });
+        }
+        
+        // ====================================================================
+        // TESTS DEL ESP-NOW DASHBOARD
+        // ====================================================================
+        
+        TestRunner.test('Validación MAC - formato válido', () => {
+            const result = validateMACAddress('AA:BB:CC:DD:EE:FF');
+            assert.true(result, 'MAC válida debe pasar validación');
+        });
+        
+        TestRunner.test('Validación MAC - minúsculas válidas', () => {
+            const result = validateMACAddress('aa:bb:cc:dd:ee:ff');
+            assert.true(result, 'MAC en minúsculas debe ser válida');
+        });
+        
+        TestRunner.test('Validación MAC - formato inválido (sin separadores)', () => {
+            const result = validateMACAddress('AABBCCDDEEFF');
+            assert.false(result, 'MAC sin separadores debe fallar validación');
+        });
+        
+        TestRunner.test('Validación MAC - formato inválido (guiones)', () => {
+            const result = validateMACAddress('AA-BB-CC-DD-EE-FF');
+            assert.false(result, 'MAC con guiones debe fallar validación');
+        });
+        
+        TestRunner.test('Validación MAC - vacía', () => {
+            const result = validateMACAddress('');
+            assert.false(result, 'MAC vacía debe fallar validación');
+        });
+        
+        TestRunner.test('Parse MAC - remover separadores', () => {
+            const result = parseMACAddress('AA:BB:CC:DD:EE:FF');
+            assert.equal(result, 'AABBCCDDEEFF', 'Debe remover separadores');
+        });
+        
+        TestRunner.test('Formato MAC - agregar separadores', () => {
+            const result = formatMACAddress('AABBCCDDEEFF');
+            assert.equal(result, 'AA:BB:CC:DD:EE:FF', 'Debe agregar separadores');
+        });
+        
+        TestRunner.test('Formato MAC - entrada inválida (muy corta)', () => {
+            const result = formatMACAddress('AABBCC');
+            assert.equal(result, 'Invalid MAC', 'MAC corta debe retornar error');
+        });
+        
+        TestRunner.test('Parse datos de slave - JSON válido', () => {
+            const json = '{"mac":"AA:BB:CC:DD:EE:FF","type":"sensor","distance":45.5,"percentage":68,"rssi":-55}';
+            const result = parseSlaveData(json);
+            
+            assert.equal(result.mac, 'AA:BB:CC:DD:EE:FF', 'MAC debe estar parseada');
+            assert.equal(result.type, 'sensor', 'Tipo debe ser sensor');
+            assert.equal(result.distance, 45.5, 'Distancia debe ser 45.5');
+            assert.equal(result.percentage, 68, 'Porcentaje debe ser 68');
+            assert.equal(result.rssi, -55, 'RSSI debe ser -55');
+        });
+        
+        TestRunner.test('Parse datos de slave - campos faltantes', () => {
+            const json = '{"mac":"AA:BB:CC:DD:EE:FF"}';  // Falta "type"
+            assert.throws(() => {
+                parseSlaveData(json);
+            }, 'Datos incompletos deben lanzar error');
+        });
+        
+        TestRunner.test('Slave online - último mensaje reciente (<30s)', () => {
+            const lastSeen = Date.now() - 15000;  // Hace 15 segundos
+            const result = isSlaveOnline(lastSeen, 30000);
+            assert.true(result, 'Slave con mensaje <30s debe estar online');
+        });
+        
+        TestRunner.test('Slave offline - último mensaje antiguo (>30s)', () => {
+            const lastSeen = Date.now() - 45000;  // Hace 45 segundos
+            const result = isSlaveOnline(lastSeen, 30000);
+            assert.false(result, 'Slave con mensaje >30s debe estar offline');
+        });
+        
+        TestRunner.test('Estado de slave - online (<10s)', () => {
+            const lastSeen = Date.now() - 5000;  // Hace 5 segundos
+            const result = getSlaveStatus(lastSeen);
+            assert.equal(result, 'online', 'Slave con <10s debe tener estado online');
+        });
+        
+        TestRunner.test('Estado de slave - warning (10-30s)', () => {
+            const lastSeen = Date.now() - 20000;  // Hace 20 segundos
+            const result = getSlaveStatus(lastSeen);
+            assert.equal(result, 'warning', 'Slave con 10-30s debe tener estado warning');
+        });
+        
+        TestRunner.test('Estado de slave - offline (>30s)', () => {
+            const lastSeen = Date.now() - 40000;  // Hace 40 segundos
+            const result = getSlaveStatus(lastSeen);
+            assert.equal(result, 'offline', 'Slave con >30s debe tener estado offline');
+        });
+        
+        TestRunner.test('Calcular distancia promedio - múltiples slaves', () => {
+            const slaves = [
+                { distance: 40 },
+                { distance: 50 },
+                { distance: 60 }
+            ];
+            const result = calculateAverageDistance(slaves);
+            assert.equal(result, 50, 'Promedio de 40, 50, 60 debe ser 50');
+        });
+        
+        TestRunner.test('Calcular distancia promedio - array vacío', () => {
+            const result = calculateAverageDistance([]);
+            assert.equal(result, 0, 'Array vacío debe retornar 0');
+        });
+        
+        TestRunner.test('Buscar slave por MAC - encontrado', () => {
+            const slaves = [
+                { mac: 'AA:BB:CC:DD:EE:FF', distance: 40 },
+                { mac: '11:22:33:44:55:66', distance: 50 }
+            ];
+            const result = findSlaveByMAC(slaves, 'AA:BB:CC:DD:EE:FF');
+            assert.notNull(result, 'Slave debe ser encontrado');
+            assert.equal(result.distance, 40, 'Debe retornar el slave correcto');
+        });
+        
+        TestRunner.test('Buscar slave por MAC - no encontrado', () => {
+            const slaves = [
+                { mac: 'AA:BB:CC:DD:EE:FF', distance: 40 }
+            ];
+            const result = findSlaveByMAC(slaves, '11:22:33:44:55:66');
+            assert.equal(result, undefined, 'Slave no debe ser encontrado');
+        });
+        
+        TestRunner.test('Ordenar slaves por RSSI - descendente', () => {
+            const slaves = [
+                { mac: 'AA:BB:CC:DD:EE:FF', rssi: -70 },
+                { mac: '11:22:33:44:55:66', rssi: -45 },
+                { mac: 'FF:EE:DD:CC:BB:AA', rssi: -60 }
+            ];
+            const sorted = sortSlavesByRSSI(slaves);
+            
+            assert.equal(sorted[0].rssi, -45, 'Primer slave debe tener mejor RSSI');
+            assert.equal(sorted[1].rssi, -60, 'Segundo slave debe tener RSSI intermedio');
+            assert.equal(sorted[2].rssi, -70, 'Tercer slave debe tener peor RSSI');
+        });
+        
+        TestRunner.test('Filtrar slaves online - múltiples estados', () => {
+            const now = Date.now();
+            const slaves = [
+                { mac: 'AA:BB:CC:DD:EE:FF', lastSeen: now - 5000 },    // Online
+                { mac: '11:22:33:44:55:66', lastSeen: now - 40000 },   // Offline
+                { mac: 'FF:EE:DD:CC:BB:AA', lastSeen: now - 15000 }    // Online
+            ];
+            const online = filterOnlineSlaves(slaves);
+            
+            assert.equal(online.length, 2, 'Debe haber 2 slaves online');
+            assert.equal(online[0].mac, 'AA:BB:CC:DD:EE:FF', 'Primer slave debe estar online');
+            assert.equal(online[1].mac, 'FF:EE:DD:CC:BB:AA', 'Tercer slave debe estar online');
+        });
+        
+        TestRunner.test('Crear payload de slave - acción add', () => {
+            const result = createSlavePayload('AA:BB:CC:DD:EE:FF', 'add');
+            const parsed = JSON.parse(result);
+            
+            assert.equal(parsed.mac, 'AA:BB:CC:DD:EE:FF', 'MAC debe estar en payload');
+            assert.equal(parsed.action, 'add', 'Acción debe ser add');
+            assert.notNull(parsed.timestamp, 'Timestamp debe estar presente');
+        });
+        
+        TestRunner.test('Crear payload de slave - acción inválida', () => {
+            assert.throws(() => {
+                createSlavePayload('AA:BB:CC:DD:EE:FF', 'invalid');
+            }, 'Acción inválida debe lanzar error');
+        });
+        
+        TestRunner.test('Crear payload de slave - MAC inválida', () => {
+            assert.throws(() => {
+                createSlavePayload('INVALID', 'add');
+            }, 'MAC inválida debe lanzar error');
+        });
+        
+        TestRunner.test('Simulación actualización UI - lista de slaves', () => {
+            document.body.innerHTML += '<div id="slave-list"></div>';
+            const container = document.getElementById('slave-list');
+            
+            const slaves = [
+                { mac: 'AA:BB:CC:DD:EE:FF', distance: 45.5, percentage: 68, rssi: -55, lastSeen: Date.now() - 5000 },
+                { mac: '11:22:33:44:55:66', distance: 38.2, percentage: 75, rssi: -62, lastSeen: Date.now() - 40000 }
+            ];
+            
+            slaves.forEach(slave => {
+                const div = document.createElement('div');
+                div.className = 'slave-item';
+                div.dataset.mac = slave.mac;
+                div.innerHTML = `
+                    <span>${slave.mac}</span>
+                    <span>${slave.distance.toFixed(1)} cm</span>
+                    <span>${slave.percentage}%</span>
+                    <span class="status-${getSlaveStatus(slave.lastSeen)}">${getSlaveStatus(slave.lastSeen)}</span>
+                `;
+                container.appendChild(div);
+            });
+            
+            const items = container.querySelectorAll('.slave-item');
+            assert.equal(items.length, 2, 'Debe renderizar 2 slaves');
+            assert.equal(items[0].dataset.mac, 'AA:BB:CC:DD:EE:FF', 'Primer slave debe tener MAC correcta');
+            assert.true(items[0].textContent.includes('online'), 'Primer slave debe estar online');
+            assert.true(items[1].textContent.includes('offline'), 'Segundo slave debe estar offline');
+        });
+        
+        // ====================================================================
+        // MINI FRAMEWORK DE TESTING
+        // ====================================================================
+        
+        const TestRunner = {
+            tests: [],
+            results: [],
+            
+            test(name, fn) {
+                this.tests.push({ name, fn });
+            },
+            
+            async run() {
+                this.results = [];
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = '';
+                
+                for (const test of this.tests) {
+                    const result = await this.runTest(test);
+                    this.results.push(result);
+                    this.displayResult(result);
+                }
+                
+                this.displaySummary();
+            },
+            
+            async runTest(test) {
+                const startTime = performance.now();
+                try {
+                    await test.fn();
+                    const endTime = performance.now();
+                    return {
+                        name: test.name,
+                        status: 'PASS',
+                        time: (endTime - startTime).toFixed(2) + 'ms'
+                    };
+                } catch (error) {
+                    const endTime = performance.now();
+                    return {
+                        name: test.name,
+                        status: 'FAIL',
+                        error: error.message,
+                        time: (endTime - startTime).toFixed(2) + 'ms'
+                    };
+                }
+            },
+            
+            displayResult(result) {
+                const resultsDiv = document.getElementById('results');
+                const div = document.createElement('div');
+                div.className = 'test-container';
+                
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `test-result test-${result.status.toLowerCase()}`;
+                
+                if (result.status === 'PASS') {
+                    resultDiv.innerHTML = `✅ ${result.name} - ${result.time}`;
+                } else {
+                    resultDiv.innerHTML = `❌ ${result.name}<br>Error: ${result.error} - ${result.time}`;
+                }
+                
+                div.appendChild(resultDiv);
+                resultsDiv.appendChild(div);
+            },
+            
+            displaySummary() {
+                const summaryDiv = document.getElementById('summary');
+                const passed = this.results.filter(r => r.status === 'PASS').length;
+                const failed = this.results.filter(r => r.status === 'FAIL').length;
+                const total = this.results.length;
+                
+                summaryDiv.innerHTML = `
+                    <div class="test-container">
+                        <div class="summary ${failed === 0 ? 'pass' : 'fail'}">
+                            ${total} Tests | ${passed} Passed | ${failed} Failed
+                        </div>
+                    </div>
+                `;
+            }
+        };
+        
+        const assert = {
+            equal(actual, expected, message = '') {
+                if (actual !== expected) {
+                    throw new Error(`${message} - Expected ${expected}, got ${actual}`);
+                }
+            },
+            
+            notEqual(actual, expected, message = '') {
+                if (actual === expected) {
+                    throw new Error(`${message} - Expected NOT ${expected}, got ${actual}`);
+                }
+            },
+            
+            true(actual, message = '') {
+                if (actual !== true) {
+                    throw new Error(`${message} - Expected true, got ${actual}`);
+                }
+            },
+            
+            false(actual, message = '') {
+                if (actual !== false) {
+                    throw new Error(`${message} - Expected false, got ${actual}`);
+                }
+            },
+            
+            notNull(actual, message = '') {
+                if (actual === null || actual === undefined) {
+                    throw new Error(`${message} - Expected not null/undefined`);
+                }
+            },
+            
+            throws(fn, message = '') {
+                try {
+                    fn();
+                    throw new Error(`${message} - Expected function to throw`);
+                } catch (e) {
+                    if (e.message.includes('Expected function to throw')) {
+                        throw e;
+                    }
+                }
+            }
+        };
+        
+        // ====================================================================
+        // FUNCIÓN PRINCIPAL
+        // ====================================================================
+        
+        function runAllTests() {
+            TestRunner.run();
+        }
+        
+        window.addEventListener('load', () => {
+            setTimeout(runAllTests, 500);
+        });
+    </script>
+</body>
+</html>

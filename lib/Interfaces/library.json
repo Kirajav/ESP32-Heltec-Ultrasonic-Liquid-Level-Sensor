@@ -1,0 +1,7 @@
+{
+    "name": "Interfaces",
+    "version": "1.0.0",
+    "description": "Abstract interfaces for dependency injection",
+    "frameworks": "arduino",
+    "platforms": "espressif32"
+}

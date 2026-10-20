@@ -1,0 +1,16 @@
+{
+  "name": "esp32-mock-server",
+  "version": "1.0.0",
+  "description": "A mock server for testing the ESP32 web interfaces.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  }
+}

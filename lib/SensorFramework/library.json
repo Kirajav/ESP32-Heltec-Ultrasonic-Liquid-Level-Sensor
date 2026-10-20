@@ -1,0 +1,7 @@
+{
+    "name": "SensorFramework",
+    "version": "1.0.0",
+    "description": "Water level sensor framework with HC-SR04 support",
+    "frameworks": "arduino",
+    "platforms": "espressif32"
+}

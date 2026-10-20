@@ -1,0 +1,7 @@
+{
+    "name": "HardwareBoardStatus",
+    "version": "1.0.0",
+    "description": "Hardware board status monitoring",
+    "frameworks": "arduino",
+    "platforms": "espressif32"
+}

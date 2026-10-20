@@ -1,0 +1,1064 @@
+﻿        const translations = {
+            es: {
+                page_title: "Portal de Configuración",
+                header_title: "Sensor de Nivel",
+                header_subtitle: "Portal de Configuración",
+                wifi_config: "WiFi",
+                sensor_config: "Sensor",
+                ap_config: "Punto de Acceso",
+                system_config: "Sistema",
+                actions: "Acciones",
+                saved_networks: "Redes Guardadas",
+                no_saved_networks: "No hay redes guardadas",
+                add_new_network: "Agregar Nueva Red",
+                scan_networks: "Escanear Redes",
+                network_name: "Nombre de Red (SSID)",
+                password: "Contraseña",
+                wifi_password_help: "Mínimo 8 caracteres para mayor seguridad.",
+                make_default: "Establecer como predeterminada",
+                add_network: "Agregar Red",
+                tank_height: "Altura del Tanque (cm)",
+                tank_height_help: "Distancia total desde el fondo del tanque hasta la parte superior.",
+                tank_capacity: "Capacidad del Tanque (litros)",
+                tank_capacity_help: "Volumen máximo de liquido cuando el tanque está lleno.",
+                sensor_model: "Modelo del Sensor Ultrasónico",
+                sensor_model_help: "Selecciona tu modelo de sensor para auto-configurar distancias mínima y máxima.",
+                custom_sensor: "Personalizado",
+                min_distance: "Distancia Mínima del Sensor (cm)",
+                min_distance_help: "⚙️ Auto-configurado por modelo de sensor.",
+                max_distance: "Distancia Máxima del Sensor (cm)",
+                max_distance_help: "⚙️ Auto-configurado por modelo de sensor.",
+                container_type: "Tipo de Contenedor",
+                container_type_help: "Contenedor sobre el cual se va a sensar su volumen.",
+                tank: "Tanque",
+                cistern: "Cisterna",
+                generic: "Contenedor Genérico",
+                sigma_filter_title: "📊 Filtro Estadístico (σ)",
+                sigma_filter_desc: "Controla cómo se filtran las lecturas del sensor para eliminar ruido y ecos falsos.",
+                sigma_samples: "Muestras por lectura (5-30)",
+                sigma_samples_help: "Cantidad de mediciones por ciclo. Más muestras = más precisión pero más lento.",
+                sigma_delay_ms: "Delay entre muestras (10-500 ms)",
+                sigma_delay_ms_help: "300ms recomendado para evitar reverberación ultrasónica en tanques.",
+                sigma_threshold: "Umbral sigma (1.0-3.0)",
+                sigma_threshold_help: "Muestras fuera de μ±kσ se descartan. Menor = más estricto (1.5 recomendado).",
+                sigma_min_valid: "Mínimo de muestras válidas (3-20)",
+                sigma_min_valid_help: "Mínimo de muestras que deben sobrevivir el filtro para aceptar la lectura.",
+                save_sensor: "Guardar",
+                ap_name: "Nombre del AP",
+                ap_name_help: "Nombre que aparecerá en la lista de redes WiFi.",
+                ap_password: "Contraseña del AP",
+                ap_password_help: "De 8 a 10 caracteres. Simple y fácil de recordar.",
+                device_name: "Nombre del Dispositivo (Hostname)",
+                device_name_help: "Nombre para identificar el dispositivo en la red local (sin espacios).",
+                save_ap: "Guardar",
+                auto_sleep_time: "Apagado Automático de Pantalla",
+                auto_sleep_help: "Tiempo para que la pantalla se apague y ahorrar energía.",
+                update_interval: "Intervalo de Lectura del Sensor (segundos)",
+                update_interval_help: "Frecuencia con la que el sensor mide el nivel del liquido.",
+                save_system: "Guardar",
+                save_all_title: "Guardar Todo",
+                save_all_desc: "Guarda todos los cambios de todas las secciones sin reiniciar.",
+                save_all_desc_short: "Guarda todos los ajustes.",
+                save_and_restart_title: "Aplicar y Conectar",
+                save_and_restart_desc: "Guarda la configuración y reinicia el dispositivo para conectar al WiFi.",
+                save_and_restart_desc_short: "Guarda y reinicia con WiFi.",
+                restart_title: "Reiniciar",
+                restart_desc: "Reinicia el dispositivo. Los cambios no guardados se perderán.",
+                restart_desc_short: "Reinicia el dispositivo.",
+                factory_reset_title: "Reset de Fábrica",
+                factory_reset_desc: "Borra toda la configuración y restaura los valores de fábrica.",
+                factory_reset_desc_short: "Borra la configuración.",
+                default_network: "Predeterminada",
+                saved_network: "Guardada",
+                set_as_default: "Hacer Predeterminada",
+                remove_network: "Eliminar",
+                mqtt_config: "MQTT / HA",
+                mqtt_enable: "Habilitar conexión MQTT",
+                mqtt_enable_help: "Conecta el sensor a Home Assistant vía MQTT local con Auto-Discovery.",
+                mqtt_broker_host: "Broker IP",
+                mqtt_broker_host_help: "Dirección IP del broker MQTT (ej: 192.168.1.100).",
+                mqtt_broker_port: "Puerto",
+                mqtt_broker_port_help: "Puerto del broker MQTT (por defecto 1883).",
+                mqtt_username: "Usuario",
+                mqtt_username_help: "Usuario para autenticación MQTT (opcional).",
+                mqtt_password: "Contraseña",
+                mqtt_password_help: "Contraseña para autenticación MQTT (opcional).",
+                mqtt_device_name: "Nombre del Dispositivo",
+                mqtt_device_name_help: "Nombre que aparecerá en Home Assistant.",
+                save_mqtt: "Guardar"
+            },
+            en: {
+                page_title: "Configuration Portal",
+                header_title: "Liquid Level Sensor",
+                header_subtitle: "Configuration Portal",
+                wifi_config: "WiFi",
+                sensor_config: "Sensor",
+                ap_config: "Access Point",
+                system_config: "System",
+                actions: "Actions",
+                saved_networks: "Saved Networks",
+                no_saved_networks: "No saved networks",
+                add_new_network: "Add New Network",
+                scan_networks: "Scan Networks",
+                network_name: "Network Name (SSID)",
+                password: "Password",
+                wifi_password_help: "Minimum 8 characters for better security.",
+                make_default: "Set as default",
+                add_network: "Add Network",
+                tank_height: "Tank Height (cm)",
+                tank_height_help: "Total distance from tank bottom to top.",
+                tank_capacity: "Tank Capacity (liters)",
+                tank_capacity_help: "Maximum liquid volume when tank is full.",
+                sensor_model: "Ultrasonic Sensor Model",
+                sensor_model_help: "Select your sensor model to auto-configure min/max distances.",
+                custom_sensor: "Custom",
+                min_distance: "Minimum Sensor Distance (cm)",
+                min_distance_help: "⚙️ Auto-configured by sensor model.",
+                max_distance: "Maximum Sensor Distance (cm)",
+                max_distance_help: "⚙️ Auto-configured by sensor model.",
+                container_type: "Container Type",
+                container_type_help: "Container type to measure volume.",
+                tank: "Tank",
+                cistern: "Cistern",
+                generic: "Generic Container",
+                sigma_filter_title: "📊 Statistical Filter (σ)",
+                sigma_filter_desc: "Controls how sensor readings are filtered to remove noise and false echoes.",
+                sigma_samples: "Samples per reading (5-30)",
+                sigma_samples_help: "Number of measurements per cycle. More samples = more precision but slower.",
+                sigma_delay_ms: "Delay between samples (10-500 ms)",
+                sigma_delay_ms_help: "300ms recommended to avoid ultrasonic reverberation in tanks.",
+                sigma_threshold: "Sigma threshold (1.0-3.0)",
+                sigma_threshold_help: "Samples outside μ±kσ are discarded. Lower = stricter (1.5 recommended).",
+                sigma_min_valid: "Minimum valid samples (3-20)",
+                sigma_min_valid_help: "Minimum samples that must survive the filter to accept the reading.",
+                save_sensor: "Save",
+                ap_name: "AP Name",
+                ap_name_help: "Name that will appear in WiFi networks list.",
+                ap_password: "AP Password",
+                ap_password_help: "8 to 10 characters. Simple and easy to remember.",
+                device_name: "Device Name (Hostname)",
+                device_name_help: "Name to identify device on local network (no spaces).",
+                save_ap: "Save",
+                auto_sleep_time: "Automatic Screen Sleep",
+                auto_sleep_help: "Time for screen to turn off and save energy.",
+                update_interval: "Sensor Reading Interval (seconds)",
+                update_interval_help: "Frequency with which sensor measures liquid level.",
+                save_system: "Save",
+                save_all_title: "Save All",
+                save_all_desc: "Saves all changes from all sections without restarting.",
+                save_all_desc_short: "Saves all settings.",
+                save_and_restart_title: "Apply and Connect",
+                save_and_restart_desc: "Saves configuration and restarts device to connect to WiFi.",
+                save_and_restart_desc_short: "Save and restart with WiFi.",
+                restart_title: "Restart",
+                restart_desc: "Restarts device. Unsaved changes will be lost.",
+                restart_desc_short: "Restart device.",
+                factory_reset_title: "Factory Reset",
+                factory_reset_desc: "Erases all configuration and restores factory values.",
+                factory_reset_desc_short: "Erase configuration.",
+                default_network: "Default",
+                saved_network: "Saved",
+                set_as_default: "Set as Default",
+                remove_network: "Remove",
+                mqtt_config: "MQTT / HA",
+                mqtt_enable: "Enable MQTT connection",
+                mqtt_enable_help: "Connects sensor to Home Assistant via local MQTT with Auto-Discovery.",
+                mqtt_broker_host: "Broker IP",
+                mqtt_broker_host_help: "MQTT broker IP address (e.g. 192.168.1.100).",
+                mqtt_broker_port: "Port",
+                mqtt_broker_port_help: "MQTT broker port (default 1883).",
+                mqtt_username: "Username",
+                mqtt_username_help: "MQTT authentication username (optional).",
+                mqtt_password: "Password",
+                mqtt_password_help: "MQTT authentication password (optional).",
+                mqtt_device_name: "Device Name",
+                mqtt_device_name_help: "Name that will appear in Home Assistant.",
+                save_mqtt: "Save"
+            },
+            fr: {
+                page_title: "Portail de Configuration",
+                header_title: "Capteur de Niveau d'Eau",
+                header_subtitle: "Portail de Configuration",
+                wifi_config: "WiFi",
+                sensor_config: "Capteur",
+                ap_config: "Point d'Accès",
+                system_config: "Système",
+                actions: "Actions",
+                saved_networks: "Réseaux Sauvegardés",
+                no_saved_networks: "Aucun réseau sauvegardé",
+                add_new_network: "Ajouter Nouveau Réseau",
+                scan_networks: "Scanner Réseaux",
+                network_name: "Nom du Réseau (SSID)",
+                password: "Mot de Passe",
+                wifi_password_help: "Minimum 8 caractères pour plus de sécurité.",
+                make_default: "Définir par défaut",
+                add_network: "Ajouter Réseau",
+                tank_height: "Hauteur du Réservoir (cm)",
+                tank_height_help: "Distance totale du fond du réservoir au sommet.",
+                tank_capacity: "Capacité du Réservoir (litres)",
+                tank_capacity_help: "Volume maximum d'eau quand le réservoir est plein.",
+                sensor_model: "Modèle du Capteur Ultrasonique",
+                sensor_model_help: "Sélectionnez le modèle pour auto-configurer les distances min/max.",
+                custom_sensor: "Personnalisé",
+                min_distance: "Distance Minimale du Capteur (cm)",
+                min_distance_help: "⚙️ Auto-configuré par le modèle du capteur.",
+                max_distance: "Distance Maximale du Capteur (cm)",
+                max_distance_help: "⚙️ Auto-configuré par le modèle du capteur.",
+                container_type: "Type de Conteneur",
+                container_type_help: "Type de conteneur pour mesurer le volume.",
+                tank: "Réservoir",
+                cistern: "Citerne",
+                generic: "Conteneur Générique",
+                sigma_filter_title: "📊 Filtre Statistique (σ)",
+                sigma_filter_desc: "Contrôle comment les lectures du capteur sont filtrées pour éliminer le bruit et les faux échos.",
+                sigma_samples: "Échantillons par lecture (5-30)",
+                sigma_samples_help: "Nombre de mesures par cycle. Plus d'échantillons = plus précis mais plus lent.",
+                sigma_delay_ms: "Délai entre échantillons (10-500 ms)",
+                sigma_delay_ms_help: "300ms recommandé pour éviter la réverbération ultrasonique dans les réservoirs.",
+                sigma_threshold: "Seuil sigma (1.0-3.0)",
+                sigma_threshold_help: "Les échantillons hors de μ±kσ sont rejetés. Plus bas = plus strict (1.5 recommandé).",
+                sigma_min_valid: "Minimum d'échantillons valides (3-20)",
+                sigma_min_valid_help: "Minimum d'échantillons qui doivent survivre au filtre pour accepter la lecture.",
+                save_sensor: "Sauvegarder",
+                ap_name: "Nom du PA",
+                ap_name_help: "Nom qui apparaîtra dans la liste des réseaux WiFi.",
+                ap_password: "Mot de Passe PA",
+                ap_password_help: "8 à 10 caractères. Simple et facile à retenir.",
+                device_name: "Nom du Dispositif (Hostname)",
+                device_name_help: "Nom pour identifier l'appareil sur le réseau local (sans espaces).",
+                save_ap: "Sauvegarder",
+                auto_sleep_time: "Mise en Veille Automatique",
+                auto_sleep_help: "Temps pour que l'écran s'éteigne et économise l'énergie.",
+                update_interval: "Intervalle de Lecture du Capteur (secondes)",
+                update_interval_help: "Fréquence à laquelle le capteur mesure le niveau du liquide.",
+                save_system: "Sauvegarder",
+                save_all_title: "Sauvegarder Tout",
+                save_all_desc: "Sauvegarde tous les changements de toutes les sections sans redémarrer.",
+                save_all_desc_short: "Sauvegarde tous les paramètres.",
+                save_and_restart_title: "Appliquer et Connecter",
+                save_and_restart_desc: "Sauvegarde la configuration et redémarre l'appareil pour se connecter au WiFi.",
+                save_and_restart_desc_short: "Sauvegarder et redémarrer avec WiFi.",
+                restart_title: "Redémarrer",
+                restart_desc: "Redémarre l'appareil. Les changements non sauvegardés seront perdus.",
+                restart_desc_short: "Redémarrer l'appareil.",
+                factory_reset_title: "Remise à Zéro",
+                factory_reset_desc: "Efface toute la configuration et restaure les valeurs d'usine.",
+                factory_reset_desc_short: "Effacer la configuration.",
+                default_network: "Par Défaut",
+                saved_network: "Sauvegardé",
+                set_as_default: "Définir par Défaut",
+                remove_network: "Supprimer",
+                mqtt_config: "MQTT / HA",
+                mqtt_enable: "Activer la connexion MQTT",
+                mqtt_enable_help: "Connecte le capteur à Home Assistant via MQTT local avec Auto-Discovery.",
+                mqtt_broker_host: "IP du Broker",
+                mqtt_broker_host_help: "Adresse IP du broker MQTT (ex: 192.168.1.100).",
+                mqtt_broker_port: "Port",
+                mqtt_broker_port_help: "Port du broker MQTT (par défaut 1883).",
+                mqtt_username: "Utilisateur",
+                mqtt_username_help: "Utilisateur d'authentification MQTT (optionnel).",
+                mqtt_password: "Mot de Passe",
+                mqtt_password_help: "Mot de passe d'authentification MQTT (optionnel).",
+                mqtt_device_name: "Nom du Dispositif",
+                mqtt_device_name_help: "Nom qui apparaîtra dans Home Assistant.",
+                save_mqtt: "Sauvegarder"
+            }
+        };
+
+        let currentLanguage = 'es';
+
+        // Función para cambiar idioma
+        function selectLanguage(lang, flag) {
+            currentLanguage = lang;
+            document.getElementById('current-flag').innerHTML = flag;
+            document.getElementById('language-dropdown').classList.remove('open');
+            applyTranslations(lang);
+            localStorage.setItem('selectedLanguage', lang);
+            localStorage.setItem('selectedFlag', flag);
+        }
+
+        // Función para aplicar traducciones
+        function applyTranslations(lang) {
+            const elements = document.querySelectorAll('[data-translate]');
+            elements.forEach(element => {
+                const key = element.getAttribute('data-translate');
+                if (translations[lang] && translations[lang][key]) {
+                    if (element.tagName === 'INPUT' && element.type === 'text') {
+                        element.placeholder = translations[lang][key];
+                    } else {
+                        element.textContent = translations[lang][key];
+                    }
+                }
+            });
+            document.title = translations[lang].page_title;
+        }
+
+        // Toggle del menú de idiomas
+        document.getElementById('language-dropdown').addEventListener('click', function(e) {
+            e.stopPropagation();
+            this.classList.toggle('open');
+        });
+
+        // Cerrar menú de idiomas al hacer clic fuera
+        document.addEventListener('click', function() {
+            document.getElementById('language-dropdown').classList.remove('open');
+        });
+
+        // Toggle del tema
+        document.getElementById('theme-toggle').addEventListener('click', function() {
+            document.body.classList.toggle('light-theme');
+            this.textContent = document.body.classList.contains('light-theme') ? '🌙' : '☀️';
+            localStorage.setItem('global-theme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
+        });
+
+        // Función para mostrar toast
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<div class="toast-message">${message}</div>`;
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 100);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => container.removeChild(toast), 400);
+            }, 3000);
+        }
+
+        // Función para toggle de contraseña
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const button = input.nextElementSibling;
+            if (input.type === 'password') {
+                input.type = 'text';
+                button.innerHTML = '<svg class="icon"><use xlink:href="#eye-closed-icon"></use></svg>';
+            } else {
+                input.type = 'password';
+                button.innerHTML = '<svg class="icon"><use xlink:href="#eye-open-icon"></use></svg>';
+            }
+        }
+
+        // Navegación del menú lateral
+        document.querySelectorAll('.nav-link').forEach(link => {
+            if (link.id !== 'actions-nav-link') {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                    const target = this.getAttribute('href');
+                    document.querySelector(target).scrollIntoView({ behavior: 'smooth' });
+                });
+            }
+        });
+
+        // Funciones de configuración WiFi
+        function scanWiFi() {
+            const button = document.getElementById('scan-button');
+            const wifiList = document.getElementById('wifi-list');
+            
+            // Cambiar botón a estado de escaneo
+            button.disabled = true;
+            button.innerHTML = '⏳ Escaneando...';
+            showToast('Iniciando escaneo de redes WiFi...', 'info');
+            
+            // Limpiar lista anterior
+            wifiList.innerHTML = '<div class="wifi-item">🔍 Iniciando escaneo...</div>';
+            
+            // Resetear contador de reintentos
+            scanRetries = 0;
+            
+            // Paso 1: Iniciar el escaneo
+            fetch('/scan-wifi')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data[0] && data[0].error) {
+                        throw new Error(data[0].message || 'Error en el escaneo');
+                    }
+                    
+                    if (data[0] && (data[0].scanning || data[0].message)) {
+                        showToast(data[0].message || 'Escaneo en progreso...', 'info');
+                        wifiList.innerHTML = '<div class="wifi-item">🔍 Escaneando redes...</div>';
+                        
+                        // Esperar y verificar resultados
+                        setTimeout(() => checkScanResults(), 2000);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error starting WiFi scan:', error);
+                    showToast(`Error al iniciar escaneo: ${error.message}`, 'error');
+                    wifiList.innerHTML = '<div class="wifi-item">❌ Error al iniciar escaneo</div>';
+                    restoreButton();
+                });
+        }
+        
+        let scanRetries = 0;
+        const MAX_SCAN_RETRIES = 10;
+        
+        function checkScanResults() {
+            const wifiList = document.getElementById('wifi-list');
+            scanRetries++;
+            
+            if (scanRetries > MAX_SCAN_RETRIES) {
+                showToast('Escaneo tardó demasiado. Intenta de nuevo.', 'error');
+                wifiList.innerHTML = '<div class="wifi-item">⏱️ Tiempo agotado. Intenta escanear de nuevo.</div>';
+                restoreButton();
+                scanRetries = 0;
+                return;
+            }
+            
+            fetch('/wifi-results')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data[0] && data[0].error) {
+                        throw new Error(data[0].message || 'Error obteniendo resultados');
+                    }
+                    
+                    if (data[0] && data[0].scanning) {
+                        // Aún escaneando, esperar más (sin mostrar toast repetido)
+                        setTimeout(() => checkScanResults(), 2000);
+                        return;
+                    }
+                    
+                    // Resultados listos
+                    scanRetries = 0;
+                    renderWiFiNetworks(data);
+                    showToast(`${data.length} redes encontradas`, 'success');
+                    restoreButton();
+                })
+                .catch(error => {
+                    console.error('Error getting WiFi results:', error);
+                    showToast(`Error obteniendo resultados: ${error.message}`, 'error');
+                    wifiList.innerHTML = '<div class="wifi-item">❌ Error obteniendo resultados</div>';
+                    restoreButton();
+                    scanRetries = 0;
+                });
+        }
+        
+        function restoreButton() {
+            const button = document.getElementById('scan-button');
+            button.disabled = false;
+            button.innerHTML = '🔄 <span data-translate="scan_networks">Escanear Redes</span>';
+        }
+
+        function renderWiFiNetworks(networks) {
+            const wifiList = document.getElementById('wifi-list');
+            
+            if (!networks || networks.length === 0) {
+                wifiList.innerHTML = '<div class="wifi-item">📡 No se encontraron redes</div>';
+                return;
+            }
+
+            // Ordenar por señal (RSSI más alto = mejor señal)
+            networks.sort((a, b) => b.rssi - a.rssi);
+
+            wifiList.innerHTML = networks.map(network => `
+                <div class="wifi-item" onclick="selectWiFiNetwork('${network.ssid}', ${network.encryption})">
+                    <div class="wifi-signal">
+                        ${getWiFiSignalIcon(network.rssi)}
+                    </div>
+                    <div class="wifi-details">
+                        <div class="wifi-name">${network.ssid}</div>
+                        <div class="wifi-info">
+                            <span class="wifi-rssi">${network.rssi} dBm</span>
+                            <span class="wifi-security">${network.encryption ? '🔒' : '🔓'}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getWiFiSignalIcon(rssi) {
+            // Convertir RSSI a porcentaje de señal y asignar color
+            let signalBars, signalColor, signalPercentage;
+            
+            if (rssi >= -55) {
+                signalBars = 4; signalColor = '#4caf50'; signalPercentage = 100; // Excelente
+            } else if (rssi >= -65) {
+                signalBars = 3; signalColor = '#8bc34a'; signalPercentage = 75;  // Buena
+            } else if (rssi >= -75) {
+                signalBars = 2; signalColor = '#ff9800'; signalPercentage = 50;  // Regular
+            } else if (rssi >= -85) {
+                signalBars = 1; signalColor = '#f44336'; signalPercentage = 25;  // Débil
+            } else {
+                signalBars = 0; signalColor = '#9e9e9e'; signalPercentage = 5;   // Muy débil
+            }
+
+            // Las barras se colorean de abajo (punto) hacia arriba (arco exterior)
+            // Punto = siempre visible (señal mínima), arco exterior = señal excelente
+            return `
+                <svg class="wifi-signal-icon" viewBox="0 0 24 24" style="color: ${signalColor};" title="${signalPercentage}% - ${rssi} dBm">
+                    <path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9z" 
+                          fill="${signalBars >= 4 ? signalColor : '#333'}" opacity="${signalBars >= 4 ? 1 : 0.3}"/>
+                    <path d="M5 13l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z" 
+                          fill="${signalBars >= 3 ? signalColor : '#333'}" opacity="${signalBars >= 3 ? 1 : 0.3}"/>
+                    <path d="M9 17l2 2c.87-.87 2.13-.87 3 0l2-2C14.63 15.63 11.37 15.63 9 17z" 
+                          fill="${signalBars >= 2 ? signalColor : '#333'}" opacity="${signalBars >= 2 ? 1 : 0.3}"/>
+                    <circle cx="12" cy="21" r="1" 
+                           fill="${signalBars >= 1 ? signalColor : '#333'}" opacity="${signalBars >= 1 ? 1 : 0.3}"/>
+                </svg>
+            `;
+        }
+
+        function selectWiFiNetwork(ssid, requiresPassword) {
+            document.getElementById('wifi-ssid').value = ssid;
+            if (requiresPassword) {
+                document.getElementById('wifi-password').focus();
+                showToast(`Red "${ssid}" seleccionada. Ingresa la contraseña.`, 'info');
+            } else {
+                showToast(`Red abierta "${ssid}" seleccionada.`, 'success');
+            }
+        }
+
+        function addWiFiNetwork() {
+            const ssid = document.getElementById('wifi-ssid').value.trim();
+            const password = document.getElementById('wifi-password').value;
+            const makeDefault = document.getElementById('make-default').checked;
+            
+            if (!ssid) {
+                showToast('Por favor ingrese el nombre de la red', 'error');
+                return;
+            }
+            
+            if (ssid.length > 32) {
+                showToast('El nombre de la red no puede tener más de 32 caracteres', 'error');
+                return;
+            }
+            
+            if (password && password.length < 8) {
+                showToast('La contraseña debe tener al menos 8 caracteres', 'error');
+                return;
+            }
+
+            const networkData = {
+                ssid: ssid,
+                password: password,
+                make_default: makeDefault
+            };
+
+            fetch('/api/wifi/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(networkData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(`Red "${ssid}" agregada correctamente`, 'success');
+                    document.getElementById('wifi-ssid').value = '';
+                    document.getElementById('wifi-password').value = '';
+                    loadSavedNetworks();
+                } else {
+                    showToast(data.message || 'Error al agregar la red', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error adding network:', error);
+                showToast('Error al agregar la red', 'error');
+            });
+        }
+
+        function loadSavedNetworks() {
+            fetch('/api/wifi/saved')
+                .then(response => response.json())
+                .then(data => {
+                    const savedList = document.getElementById('saved-wifi-list');
+                    if (!data.networks || data.networks.length === 0) {
+                        savedList.innerHTML = '<div class="wifi-saved-item">📡 <span data-translate="no_saved_networks">No hay redes guardadas</span></div>';
+                        return;
+                    }
+                    
+                    savedList.innerHTML = data.networks.map(network => `
+                        <div class="wifi-saved-item ${network.is_default ? 'wifi-saved-default' : ''}">
+                            <div class="wifi-details">
+                                <div class="wifi-name">${network.ssid}</div>
+                                <div class="wifi-saved-status">
+                                    ${network.is_default ? '<span data-translate="default_network">Predeterminada</span>' : '<span data-translate="saved_network">Guardada</span>'}
+                                </div>
+                            </div>
+                            <div class="wifi-saved-actions">
+                                ${!network.is_default ? `<button class="button button-secondary" onclick="setDefaultNetwork('${network.ssid}')">⭐</button>` : ''}
+                                <button class="button button-danger" onclick="removeNetwork('${network.ssid}')">🗑️</button>
+                            </div>
+                        </div>
+                    `).join('');
+                })
+                .catch(error => {
+                    console.error('Error loading saved networks:', error);
+                    document.getElementById('saved-wifi-list').innerHTML = '<div class="wifi-saved-item">❌ Error al cargar redes guardadas</div>';
+                });
+        }
+
+        function setDefaultNetwork(ssid) {
+            fetch('/api/wifi/default', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ssid: ssid })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(`"${ssid}" establecida como predeterminada`, 'success');
+                    loadSavedNetworks();
+                } else {
+                    showToast(data.message || 'Error al establecer red predeterminada', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error setting default network:', error);
+                showToast('Error al establecer red predeterminada', 'error');
+            });
+        }
+
+        function removeNetwork(ssid) {
+            if (!confirm(`¿Eliminar la red "${ssid}"?`)) return;
+            
+            fetch('/api/wifi/remove', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ssid: ssid })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(`Red "${ssid}" eliminada`, 'success');
+                    loadSavedNetworks();
+                } else {
+                    showToast(data.message || 'Error al eliminar la red', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error removing network:', error);
+                showToast('Error al eliminar la red', 'error');
+            });
+        }
+
+        function onSensorModelChange() {
+            const select = document.getElementById('sensor-model');
+            const modelId = parseInt(select.value);
+            const isCustom = modelId === 6;
+            const minInput = document.getElementById('min-distance');
+            const maxInput = document.getElementById('max-distance');
+            const minHelp = document.getElementById('min-dist-help');
+            const maxHelp = document.getElementById('max-dist-help');
+            
+            if (!isCustom) {
+                const opt = select.options[select.selectedIndex];
+                const match = opt.text.match(/\((\d+)-(\d+)cm\)/);
+                if (match) {
+                    minInput.value = match[1];
+                    maxInput.value = match[2];
+                }
+                minInput.readOnly = true;
+                maxInput.readOnly = true;
+                if (minHelp) minHelp.textContent = '⚙️ Auto-configurado por modelo de sensor';
+                if (maxHelp) maxHelp.textContent = '⚙️ Auto-configurado por modelo de sensor';
+            } else {
+                minInput.readOnly = false;
+                maxInput.readOnly = false;
+                if (minHelp) minHelp.textContent = 'Ingresa la distancia mínima manualmente';
+                if (maxHelp) maxHelp.textContent = 'Ingresa la distancia máxima manualmente';
+            }
+        }
+
+        // Intervalos recomendados según tipo de contenedor y capacidad
+        function getRecommendedIntervals() {
+            const type = parseInt(document.getElementById('container-type').value);
+            const cap = parseFloat(document.getElementById('tank-capacity').value) || 1000;
+            let normal, filling, draining;
+            
+            if (type === 0) { // Tanque
+                normal = cap <= 100 ? 10 : (cap <= 500 ? 20 : 30);
+                filling = cap <= 100 ? 3 : (cap <= 500 ? 5 : 8);
+                draining = cap <= 100 ? 5 : (cap <= 500 ? 10 : 15);
+            } else if (type === 1) { // Cisterna
+                normal = cap <= 1000 ? 30 : (cap <= 2500 ? 45 : (cap <= 5000 ? 60 : 90));
+                filling = cap <= 2500 ? 5 : 10;
+                draining = cap <= 2500 ? 10 : 20;
+            } else { // Genérico
+                normal = cap <= 200 ? 15 : (cap <= 1000 ? 30 : (cap <= 5000 ? 60 : 120));
+                filling = cap <= 500 ? 5 : 8;
+                draining = cap <= 500 ? 8 : 15;
+            }
+            return { normal, filling, draining };
+        }
+
+        function updateIntervalDisplay() {
+            const r = getRecommendedIntervals();
+            const el = document.getElementById('interval-recommended');
+            const type = ['Tanque','Cisterna','Genérico'][parseInt(document.getElementById('container-type').value)];
+            const cap = document.getElementById('tank-capacity').value;
+            if (el) {
+                el.innerHTML = '📊 <b>' + type + ' (' + cap + 'L)</b>: Normal=' + r.normal + 's | Llenando=' + r.filling + 's | Vaciando=' + r.draining + 's';
+            }
+            // Actualizar valores manuales también
+            document.getElementById('normal-interval').value = r.normal;
+            document.getElementById('filling-interval').value = r.filling;
+            document.getElementById('draining-interval').value = r.draining;
+        }
+
+        function onAdaptiveToggle() {
+            const adaptive = document.getElementById('adaptive-interval').checked;
+            document.getElementById('manual-intervals').style.display = adaptive ? 'none' : 'block';
+            document.getElementById('interval-details').style.display = adaptive ? 'block' : 'none';
+            if (adaptive) updateIntervalDisplay();
+        }
+
+        function onContainerTypeChange() {
+            if (document.getElementById('adaptive-interval').checked) {
+                updateIntervalDisplay();
+            }
+        }
+
+        // Actualizar display cuando cambia capacidad
+        document.addEventListener('DOMContentLoaded', function() {
+            var capInput = document.getElementById('tank-capacity');
+            if (capInput) {
+                capInput.addEventListener('change', function() {
+                    if (document.getElementById('adaptive-interval').checked) {
+                        updateIntervalDisplay();
+                    }
+                });
+            }
+            // Inicializar display
+            setTimeout(updateIntervalDisplay, 500);
+        });
+
+        function saveSensorConfig() {
+            const config = {
+                sensor_model: parseInt(document.getElementById('sensor-model').value),
+                tank_height: document.getElementById('tank-height').value,
+                tank_capacity: document.getElementById('tank-capacity').value,
+                min_distance: document.getElementById('min-distance').value,
+                max_distance: document.getElementById('max-distance').value,
+                container_type: document.getElementById('container-type').value,
+                sigma_samples: parseInt(document.getElementById('sigma-samples').value),
+                sigma_delay_ms: parseInt(document.getElementById('sigma-delay-ms').value),
+                sigma_threshold: parseFloat(document.getElementById('sigma-threshold').value),
+                sigma_min_valid: parseInt(document.getElementById('sigma-min-valid').value)
+            };
+            
+            fetch('/api/sensor/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Configuración del sensor guardada', 'success');
+                } else {
+                    showToast(data.message || 'Error al guardar configuración del sensor', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving sensor config:', error);
+                showToast('Error al guardar configuración del sensor', 'error');
+            });
+        }
+
+        function loadAPConfig() {
+            fetch('/api/ap/config')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.ap_ssid) document.getElementById('ap-ssid').value = data.ap_ssid;
+                        if (data.ap_password) document.getElementById('ap-password').value = data.ap_password;
+                        if (data.hostname) document.getElementById('hostname').value = data.hostname;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading AP config:', error);
+                });
+        }
+
+        function saveAPConfig() {
+            const config = {
+                ap_ssid: document.getElementById('ap-ssid').value,
+                ap_password: document.getElementById('ap-password').value,
+                hostname: document.getElementById('hostname').value
+            };
+            
+            fetch('/api/ap/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Configuración del AP guardada', 'success');
+                } else {
+                    showToast(data.message || 'Error al guardar configuración del AP', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving AP config:', error);
+                showToast('Error al guardar configuración del AP', 'error');
+            });
+        }
+
+        function saveSystemConfig() {
+            const config = {
+                auto_sleep_time: document.getElementById('auto-sleep-time').value
+            };
+            
+            fetch('/api/system/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Configuración del sistema guardada', 'success');
+                } else {
+                    showToast(data.message || 'Error al guardar configuración del sistema', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving system config:', error);
+                showToast('Error al guardar configuración del sistema', 'error');
+            });
+        }
+
+        function loadMQTTConfig() {
+            fetch('/api/mqtt/config')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('mqtt-enabled').checked = data.enabled || false;
+                        if (data.brokerHost) document.getElementById('mqtt-broker-host').value = data.brokerHost;
+                        if (data.brokerPort) document.getElementById('mqtt-broker-port').value = data.brokerPort;
+                        if (data.username) document.getElementById('mqtt-username').value = data.username;
+                        if (data.password) document.getElementById('mqtt-password').value = data.password;
+                        if (data.deviceName) document.getElementById('mqtt-device-name').value = data.deviceName;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading MQTT config:', error);
+                });
+        }
+
+        function saveMQTTConfig() {
+            const config = {
+                enabled: document.getElementById('mqtt-enabled').checked,
+                brokerHost: document.getElementById('mqtt-broker-host').value.trim(),
+                brokerPort: parseInt(document.getElementById('mqtt-broker-port').value) || 1883,
+                username: document.getElementById('mqtt-username').value.trim(),
+                password: document.getElementById('mqtt-password').value.trim(),
+                deviceName: document.getElementById('mqtt-device-name').value.trim()
+            };
+
+            if (config.enabled && !config.brokerHost) {
+                showToast('Ingresa la IP del broker MQTT', 'warning');
+                return;
+            }
+
+            fetch('/api/mqtt/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Configuración MQTT guardada', 'success');
+                } else {
+                    showToast(data.message || 'Error al guardar configuración MQTT', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving MQTT config:', error);
+                showToast('Error al guardar configuración MQTT', 'error');
+            });
+        }
+
+        function saveAllConfig() {
+            showToast('Guardando toda la configuración...', 'info');
+            
+            fetch('/api/config/save-all', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Toda la configuración guardada', 'success');
+                } else {
+                    showToast(data.message || 'Error al guardar la configuración', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving all config:', error);
+                showToast('Error al guardar la configuración', 'error');
+            });
+        }
+
+        function saveAndRestartConfirm() {
+            if(confirm('¿Guardar configuración y reiniciar el dispositivo?')) {
+                showToast('Guardando y reiniciando...', 'info');
+                
+                fetch('/api/save-and-restart', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('Configuración guardada. Reiniciando dispositivo...', 'success');
+                    } else {
+                        showToast(data.message || 'Error al guardar y reiniciar', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error saving and restarting:', error);
+                    showToast('Error al guardar y reiniciar', 'error');
+                });
+            }
+        }
+
+        function restartDevice() {
+            if(confirm('¿Reiniciar el dispositivo? Los cambios no guardados se perderán.')) {
+                showToast('Reiniciando dispositivo...', 'info');
+                
+                fetch('/api/restart', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('Dispositivo reiniciando...', 'success');
+                    } else {
+                        showToast(data.message || 'Error al reiniciar', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error restarting device:', error);
+                    showToast('Error al reiniciar dispositivo', 'error');
+                });
+            }
+        }
+
+        function factoryResetConfirm() {
+            if(confirm('¿Realizar reset de fábrica? Esto borrará TODA la configuración y no se puede deshacer.')) {
+                showToast('Realizando reset de fábrica...', 'warning');
+                
+                fetch('/api/factory-reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('Reset de fábrica completado. Reiniciando...', 'success');
+                    } else {
+                        showToast(data.message || 'Error al realizar reset de fábrica', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error during factory reset:', error);
+                    showToast('Error al realizar reset de fábrica', 'error');
+                });
+            }
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            // Cargar tema guardado
+            const savedTheme = localStorage.getItem('global-theme') || 'dark';
+            if (savedTheme === 'light') {
+                document.body.classList.add('light-theme');
+                document.getElementById('theme-toggle').textContent = '🌙';
+            } else {
+                document.body.classList.remove('light-theme');
+                document.getElementById('theme-toggle').textContent = '☀️';
+            }
+
+            // Generar opciones de idioma dinámicamente
+            const languageMenu = document.getElementById('language-menu');
+            const languageFlags = {
+                es: '<svg class="flag-icon" viewBox="0 0 900 600"><rect width="300" height="600" fill="#006847"/><rect x="300" width="300" height="600" fill="#fff"/><rect x="600" width="300" height="600" fill="#CE1126"/><g transform="translate(450,300)"><ellipse rx="45" ry="10" cy="60" fill="#42A5F5" opacity=".3"/><ellipse rx="30" ry="8" cy="52" fill="#795548"/><rect x="-5" y="15" width="10" height="35" rx="5" fill="#1B5E20"/><ellipse cx="-14" cy="25" rx="9" ry="13" fill="#1B5E20"/><ellipse cx="14" cy="22" rx="8" ry="11" fill="#1B5E20"/><ellipse rx="14" ry="16" cy="-8" fill="#5D4037"/><polygon points="-12,-12 -55,-45 -40,-5" fill="#5D4037"/><polygon points="-40,-5 -55,-45 -65,-50 -50,-15" fill="#4E342E"/><polygon points="12,-12 55,-45 40,-5" fill="#5D4037"/><polygon points="40,-5 55,-45 65,-50 50,-15" fill="#4E342E"/><circle cx="0" cy="-28" r="9" fill="#5D4037"/><polygon points="8,-30 18,-27 8,-25" fill="#FF8F00"/><path d="M16,-27 Q24,-34 30,-27 Q36,-20 32,-18" fill="none" stroke="#2E7D32" stroke-width="2.5"/><polygon points="-10,8 -18,18 0,12 18,18 10,8" fill="#4E342E"/></g></svg>',
+                en: '<svg class="flag-icon" viewBox="0 0 500 500"><defs><clipPath id="circleView"><circle cx="250" cy="250" r="250" /></clipPath></defs><g clip-path="url(#circleView)"><rect width="500" height="500" fill="#FFFFFF"/><rect width="500" height="38.46" y="0" fill="#B22234"/><rect width="500" height="38.46" y="76.92" fill="#B22234"/><rect width="500" height="38.46" y="153.84" fill="#B22234"/><rect width="500" height="38.46" y="230.76" fill="#B22234"/><rect width="500" height="38.46" y="307.68" fill="#B22234"/><rect width="500" height="38.46" y="384.6" fill="#B22234"/><rect width="500" height="38.46" y="461.52" fill="#B22234"/><rect width="263.16" height="269.23" fill="#3C3B6E"/><defs><polygon id="star" points="0,-10 2.9389,-4.0451 9.5106,-3.0902 4.7553,1.5451 5.8779,8.0902 0,5 -5.8779,8.0902 -4.7553,1.5451 -9.5106,-3.0902 -2.9389,-4.0451" fill="#FFFFFF"/></defs><g><g><use xlink:href="#star" transform="translate(21.93, 26.92)"/><use xlink:href="#star" transform="translate(65.79, 26.92)"/><use xlink:href="#star" transform="translate(109.65, 26.92)"/><use xlink:href="#star" transform="translate(153.51, 26.92)"/><use xlink:href="#star" transform="translate(197.37, 26.92)"/><use xlink:href="#star" transform="translate(241.23, 26.92)"/></g><g transform="translate(21.93, 26.92)"><use xlink:href="#star" transform="translate(21.93, 26.92)"/><use xlink:href="#star" transform="translate(65.79, 26.92)"/><use xlink:href="#star" transform="translate(109.65, 26.92)"/><use xlink:href="#star" transform="translate(153.51, 26.92)"/><use xlink:href="#star" transform="translate(197.37, 26.92)"/></g><g transform="translate(0, 53.84)"><use xlink:href="#star" transform="translate(21.93, 26.92)"/><use xlink:href="#star" transform="translate(65.79, 26.92)"/><use xlink:href="#star" transform="translate(109.65, 26.92)"/><use xlink:href="#star" transform="translate(153.51, 26.92)"/><use xlink:href="#star" transform="translate(197.37, 26.92)"/><use xlink:href="#star" transform="translate(241.23, 26.92)"/></g><g transform="translate(21.93, 79.76)"><use xlink:href="#star" transform="translate(21.93, 26.92)"/><use xlink:href="#star" transform="translate(65.79, 26.92)"/><use xlink:href="#star" transform="translate(109.65, 26.92)"/><use xlink:href="#star" transform="translate(153.51, 26.92)"/><use xlink:href="#star" transform="translate(197.37, 26.92)"/></g><g transform="translate(0, 107.68)"><use xlink:href="#star" transform="translate(21.93, 26.92)"/><use xlink:href="#star" transform="translate(65.79, 26.92)"/><use xlink:href="#star" transform="translate(109.65, 26.92)"/><use xlink:href="#star" transform="translate(153.51, 26.92)"/><use xlink:href="#star" transform="translate(197.37, 26.92)"/><use xlink:href="#star" transform="translate(241.23, 26.92)"/></g><g transform="translate(21.93, 134.6)"><use xlink:href="#star" transform="translate(21.93, 26.92)"/><use xlink:href="#star" transform="translate(65.79, 26.92)"/><use xlink:href="#star" transform="translate(109.65, 26.92)"/><use xlink:href="#star" transform="translate(153.51, 26.92)"/><use xlink:href="#star" transform="translate(197.37, 26.92)"/></g><g transform="translate(0, 161.52)"><use xlink:href="#star" transform="translate(21.93, 26.92)"/><use xlink:href="#star" transform="translate(65.79, 26.92)"/><use xlink:href="#star" transform="translate(109.65, 26.92)"/><use xlink:href="#star" transform="translate(153.51, 26.92)"/><use xlink:href="#star" transform="translate(197.37, 26.92)"/><use xlink:href="#star" transform="translate(241.23, 26.92)"/></g><g transform="translate(21.93, 188.44)"><use xlink:href="#star" transform="translate(21.93, 26.92)"/><use xlink:href="#star" transform="translate(65.79, 26.92)"/><use xlink:href="#star" transform="translate(109.65, 26.92)"/><use xlink:href="#star" transform="translate(153.51, 26.92)"/><use xlink:href="#star" transform="translate(197.37, 26.92)"/></g><g transform="translate(0, 215.36)"><use xlink:href="#star" transform="translate(21.93, 26.92)"/><use xlink:href="#star" transform="translate(65.79, 26.92)"/><use xlink:href="#star" transform="translate(109.65, 26.92)"/><use xlink:href="#star" transform="translate(153.51, 26.92)"/><use xlink:href="#star" transform="translate(197.37, 26.92)"/><use xlink:href="#star" transform="translate(241.23, 26.92)"/></g></g></g></svg>',
+                fr: '<svg class="flag-icon" viewBox="0 0 900 600"><rect width="300" height="600" fill="#0055a4"/><rect x="300" width="300" height="600" fill="#ffffff"/><rect x="600" width="300" height="600" fill="#ef4135"/></svg>'
+            };
+
+            Object.keys(translations).forEach(lang => {
+                if (languageFlags[lang]) {
+                    const option = document.createElement('div');
+                    option.className = 'language-option';
+                    option.innerHTML = languageFlags[lang];
+                    option.onclick = () => selectLanguage(lang, languageFlags[lang]);
+                    languageMenu.appendChild(option);
+                }
+            });
+
+            // Cargar idioma guardado
+            const savedLanguage = localStorage.getItem('selectedLanguage') || 'es';
+            const savedFlag = localStorage.getItem('selectedFlag') || languageFlags.es;
+            selectLanguage(savedLanguage, savedFlag);
+
+            // Cargar configuración actual del AP desde el servidor
+            loadAPConfig();
+            
+            // Cargar configuración MQTT
+            loadMQTTConfig();
+            
+            // Cargar redes WiFi guardadas
+            loadSavedNetworks();
+
+            // Lógica del panel de acciones móvil
+            const actionsNavLink = document.getElementById('actions-nav-link');
+            const mobileActionsOverlay = document.getElementById('mobile-actions-overlay');
+            const mobileActionsSheet = document.getElementById('mobile-actions-sheet');
+            const desktopActions = document.querySelector('.actions-menu');
+            
+            if (desktopActions) {
+                const clonedActions = desktopActions.cloneNode(true);
+                clonedActions.classList.remove('actions-menu');
+                mobileActionsSheet.appendChild(clonedActions);
+            }
+
+            actionsNavLink.addEventListener('click', function(e) {
+                if (window.innerWidth <= 900) {
+                    mobileActionsOverlay.classList.add('open');
+                    mobileActionsSheet.classList.add('open');
+                }
+            });
+
+            mobileActionsOverlay.addEventListener('click', function() {
+                mobileActionsOverlay.classList.remove('open');
+                mobileActionsSheet.classList.remove('open');
+            });
+
+            // Scroll-based nav highlighting con IntersectionObserver
+            const sections = document.querySelectorAll('[id$="-section"]');
+            const navLinks = document.querySelectorAll('.nav-link');
+            const observerOpts = { root: null, rootMargin: '-20% 0px -60% 0px', threshold: 0 };
+            const sectionObserver = new IntersectionObserver(function(entries) {
+                entries.forEach(function(entry) {
+                    if (entry.isIntersecting) {
+                        const id = entry.target.id;
+                        navLinks.forEach(function(link) {
+                            if (link.getAttribute('href') === '#' + id) {
+                                link.classList.add('active');
+                            } else {
+                                link.classList.remove('active');
+                            }
+                        });
+                    }
+                });
+            }, observerOpts);
+            sections.forEach(function(sec) { sectionObserver.observe(sec); });
+        });

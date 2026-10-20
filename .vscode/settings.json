@@ -3,6 +3,8 @@
         "bitset": "cpp",
         "memory": "cpp",
         "random": "cpp",
-        "optional": "cpp"
-    }
+        "optional": "cpp",
+        "*.bak": "cpp"
+    },
+    "compile-hero.disable-compile-files-on-did-save-code": true
 }

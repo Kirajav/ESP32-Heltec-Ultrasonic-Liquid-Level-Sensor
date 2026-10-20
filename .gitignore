@@ -5,3 +5,29 @@
 .vscode/ipch
 Firmware_backup, 1a. versión_Sensor de nivel de agua (sin wifi management).bin
 SPIFFS_backup, 1a. versión_Sensor de nivel de agua (con wifi management).bin
+logs/
+
+# Build logs y archivos temporales
+build_*.txt
+upload_result*.txt
+serial_capture*.txt
+minify_*.txt
+js_check.txt
+sizes.txt
+compile_commands.json
+
+# Documentación personal, notas y respaldos (no se publican)
+privado/
+docs/
+backups/
+*.bak
+*.problemático
+serial_capture_script.py
+
+# Dependencias y herramientas locales
+node_modules/
+.oldfw/
+
+# Archivos minificados ahora se versionan en Git
+# Los originales están en data/web/*/src/
+# Los minificados están en data/web/*/*.min.*

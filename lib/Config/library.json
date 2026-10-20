@@ -1,0 +1,7 @@
+{
+    "name": "Config",
+    "version": "1.0.0",
+    "description": "Application configuration management",
+    "frameworks": "arduino",
+    "platforms": "espressif32"
+}

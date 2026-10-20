@@ -1,0 +1,7 @@
+{
+    "name": "Logger",
+    "version": "1.0.0",
+    "description": "Unified logging and NTP time sync",
+    "frameworks": "arduino",
+    "platforms": "espressif32"
+}

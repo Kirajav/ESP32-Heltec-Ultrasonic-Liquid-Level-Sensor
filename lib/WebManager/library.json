@@ -1,0 +1,7 @@
+{
+    "name": "WebManager",
+    "version": "1.0.0",
+    "description": "Async web server and captive portal manager",
+    "frameworks": "arduino",
+    "platforms": "espressif32"
+}

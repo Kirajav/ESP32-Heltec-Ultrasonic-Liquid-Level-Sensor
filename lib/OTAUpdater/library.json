@@ -1,0 +1,7 @@
+{
+    "name": "OTAUpdater",
+    "version": "1.0.0",
+    "description": "OTA firmware update manager",
+    "frameworks": "arduino",
+    "platforms": "espressif32"
+}

@@ -1,0 +1,7 @@
+{
+    "name": "DisplayManager",
+    "version": "1.0.0",
+    "description": "OLED display management",
+    "frameworks": "arduino",
+    "platforms": "espressif32"
+}

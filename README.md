@@ -1,93 +1,174 @@
-# ESP32-OTA-WebServer-NivelDeAgua
+# ESP32 Heltec Ultrasonic Liquid Level Sensor
 
-Este proyecto para ESP32 mide el nivel de agua en un tanque utilizando un sensor ultrasónico HC-SR04 y muestra los datos en una página web. Ofrece configuración a través de un portal cautivo y actualizaciones de firmware Over-the-Air (OTA).
+Sistema de monitoreo de nivel de líquido (tinacos, cisternas, contenedores) basado en ESP32, con dashboard web, portal cautivo de configuración, integración local con Home Assistant vía MQTT, red ESP-NOW entre sensores y actualizaciones OTA.
+
+> 📖 **Documentación para desarrolladores:** ver la [Wiki del proyecto](https://github.com/Kirajav/ESP32-Heltec-Ultrasonic-Liquid-Level-Sensor/wiki) (módulos, funciones, API REST, MQTT, ESP-NOW).
 
 ## Características
 
--   **Medición de Nivel de Agua:** Utiliza un sensor ultrasónico HC-SR04 para medir la distancia al agua y calcular el volumen restante.
--   **Servidor Web Asíncrono:** Implementa un servidor web en el ESP32 para mostrar la información del nivel de agua.
--   **Portal Cautivo para WiFi:** Usa WiFiManager para facilitar la configuración de las credenciales de red (SSID y contraseña) sin necesidad de hardcodearlas.
--   **Actualizaciones OTA:** Integrado con ElegantOTA para permitir la actualización del firmware de forma remota a través de la interfaz web.
--   **Configuración Personalizada:** A través del portal cautivo, se pueden modificar los parámetros de funcionamiento del sensor:
-    -   `ALTURA_MAX_AGUA_TINACO`: Altura máxima del tanque (en cm).
-    -   `CAPACIDAD_LITROS_TINACO`: Capacidad total del tanque (en litros).
-    -   `DISTANCIA_MINIMA_SENSOR`: Distancia mínima de operación del sensor.
--   **Interfaz Web Dinámica:** La página web muestra:
-    -   Una imagen que representa visualmente el nivel del agua.
-    -   La cantidad de litros restantes.
-    -   La distancia medida en centímetros.
--   **Consola WebSerial:** Permite la depuración y el envío de comandos al ESP32 a través de una consola en el navegador.
--   **Display OLED:** Muestra información relevante como la dirección IP, la distancia y los litros en la pantalla OLED de la placa Heltec.
--   **Persistencia de Datos:** Guarda la configuración en el sistema de archivos SPIFFS para mantenerla entre reinicios.
+- **Sensor ultrasónico** HC-SR04 (o JSN-SR04T / AJ-SR04M / US-100 / A02YYUW) con **filtro sigma**: 20 muestras, rechazo de ecos falsos (spike guard) y de valores fuera de μ±kσ
+- **Detección de estabilidad** y failsafe anti-desbordamiento cuando el agua entra en la zona ciega
+- **Intervalos adaptativos** y detección de llenado/vaciado
+- **Bajo consumo**: ~0.045 A a 5 V (~0.24 W) gracias a modem sleep WiFi, CPU a 80 MHz y loop con idle
+- **Dashboard web** con visualización SVG animada (tanque, cisterna, IBC) e historial
+- **Portal cautivo** multilenguaje (ES/EN/FR) para la configuración inicial
+- **MQTT / Home Assistant** local con Auto-Discovery (sensores + switch "Bomba de Agua"), reconexión automática
+- **ESP-NOW** entre unidades, con descubrimiento automático
+- **Display OLED** 128x64 SSD1306 con auto-sleep
+- **OTA** (firmware y filesystem) vía ElegantOTA, con reinicio automático
+- **WebSerial** para depuración remota desde el navegador (`help` lista los comandos)
+- **Hora NTP** con zona horaria configurable (México `CST6` por defecto, sin horario de verano)
 
-## Hardware Requerido
+## Hardware
 
--   Placa de desarrollo ESP32 (el código está adaptado para una Heltec WiFi Kit 32).
--   Sensor de distancia ultrasónico HC-SR04.
+| Componente | Modelo | Notas |
+|---|---|---|
+| Microcontrolador | Heltec WiFi Kit 32 (V1) | OLED integrado |
+| Sensor | HC-SR04 (recomendado) | Mínimo ~2–5 cm, poco ruido. **No es impermeable** |
+| Sensor alternativo | JSN-SR04T | Impermeable, pero zona ciega de ~20 cm |
+| Alimentación | Cargador USB 5 V ≥ 1 A | |
 
-## Pines Utilizados
+### Conexión
 
--   **LED:** `25` (LED integrado en la placa Heltec).
--   **Sensor HC-SR04:**
-    -   `TRIGGER_PIN`: `12`
-    -   `ECHO_PIN`: `13`
+| Sensor | Heltec | Notas |
+|---|---|---|
+| VCC | 5V | |
+| GND | GND | |
+| TRIG | GPIO 12 | Directo |
+| ECHO | GPIO 13 | **Divisor de voltaje** 1 kΩ (serie) + 2 kΩ (a GND): 5 V → 3.3 V |
 
-## Librerías
+```text
+ECHO ──[1 kΩ]──┬── GPIO 13
+               │
+            [2 kΩ]
+               │
+GND ───────────┴── GND
+```
 
--   `Arduino`
--   `WiFi`
--   `heltec.h`
--   `SPIFFS`
--   `AsyncTCP`
--   `ESPAsyncWebServer`
--   `ESPAsyncWiFiManager`
--   `WebSerial`
--   `ElegantOTA`
--   `HCSR04`
--   `ArduinoJson`
+> En tinacos cerrados la condensación corroe el HC-SR04: protege su placa (barniz/conformal coating sin tapar la malla de los transductores) o déjala fuera del tinaco.
 
-## Instalación y Uso
+## Instalación rápida
 
-1.  **Flashear el Firmware:** Compila y sube el proyecto a tu placa ESP32 usando PlatformIO.
-2.  **Subir los Datos a SPIFFS:** Sube el contenido de la carpeta `data` al sistema de archivos SPIFFS del ESP32. Esto se puede hacer con la tarea "Upload File System image" de PlatformIO.
-3.  **Configuración WiFi:**
-    -   La primera vez que se inicie, el ESP32 creará un punto de acceso WiFi con el SSID **"WiFi ESP32: Sensor Tinaco"** y la contraseña **"1234"**.
-    -   La primera vez que se inicie, el ESP32 creará un punto de acceso WiFi con el SSID **"ESP32: Sensor de nivel de agua"** y la contraseña **"12345"**.
-    -   Conéctate a esta red desde un teléfono o una computadora. Se abrirá automáticamente un portal cautivo en tu navegador (o navega a `192.168.4.1`).
-    -   En el portal, selecciona tu red WiFi local, introduce la contraseña y ajusta los parámetros del tanque.
-    -   Guarda la configuración. El ESP32 se reiniciará y se conectará a tu red WiFi.
-4.  **Acceder a la Interfaz Web:**
-    -   La dirección IP del dispositivo se mostrará en el monitor serie y en la pantalla OLED.
-    -   Abre un navegador web y navega a esa dirección IP para ver el nivel del agua.
-5.  **Actualizaciones OTA:**
-    -   Navega a `http://<IP_DEL_ESP32>/update`.
-    -   Selecciona el nuevo archivo de firmware (`.bin`) y súbelo.
+Requisitos: [PlatformIO](https://platformio.org/) (extensión de VS Code o CLI) y cable USB para la primera instalación.
 
-## Comandos WebSerial
+```bash
+git clone https://github.com/Kirajav/ESP32-Heltec-Ultrasonic-Liquid-Level-Sensor.git
+cd ESP32-Heltec-Ultrasonic-Liquid-Level-Sensor
 
-Puedes interactuar con el dispositivo a través de la consola WebSerial disponible en la interfaz web. Algunos comandos útiles son:
+# Firmware
+pio run -e heltec_wifi_kit_32 --target upload
 
--   `distancia`: Muestra la distancia actual medida.
--   `litros`: Muestra los litros calculados.
--   `ip`: Muestra la dirección IP.
--   `allinfo`: Muestra un resumen de toda la información del dispositivo.
--   `monitor`: Activa/desactiva el envío periódico de datos del sensor a la consola.
--   `ayuda`: Muestra la lista completa de comandos.
+# Archivos web (LittleFS)
+pio run -e heltec_wifi_kit_32 --target uploadfs
+```
 
-## Changelog de esta Versión
+Primera configuración: conéctate a la red WiFi del ESP32 (`ESP32: Sensor de nivel de liquido`, contraseña `12345678`, cámbiala en el portal) y abre `http://192.168.1.1`. Para volver al portal más tarde: doble reset dentro de 10 s.
 
--   **Robustez en la Configuración:**
-    -   Se eliminó un bucle de reinicios que ocurría en el primer arranque si el archivo `config.json` no existía.
-    -   El sistema ahora crea un `config.json` con valores por defecto de forma segura en el primer arranque.
--   **Corrección de Cálculo de Litros:**
-    -   Se solucionó un error que causaba que el cálculo de litros mostrara "nan" (Not a Number) debido a una posible división por cero.
--   **Mejoras en la Interfaz de Usuario (Frontend):**
-    -   El estado del display OLED (Encendido/Apagado) ahora se muestra correctamente en la página web tan pronto como se carga.
-    -   Se mejoró el diseño de las tarjetas añadiendo un fondo estilizado a los títulos para mejorar la legibilidad y la jerarquía visual.
-    -   Se añadió una barra de navegación superior para un acceso rápido a las secciones de Inicio, Actualización OTA y WebSerial.
-    -   Se implementó un botón de reinicio del dispositivo con un diálogo de confirmación para evitar reinicios accidentales.
-    -   Se integraron notificaciones "Toast" para proporcionar feedback visual al usuario sobre las acciones realizadas (ej. reinicio, cambio de estado del display).
+> ⚠️ La configuración (WiFi, MQTT, sensor) vive en LittleFS. Volver a subir el filesystem (`uploadfs` u OTA en modo *Filesystem*) **la borra**. Las actualizaciones normales solo necesitan el firmware.
 
--   **Correcciones del Display OLED:**
-    -   Se eliminó el mensaje "OLED init..." que aparecía al iniciar el dispositivo.
-    -   Se solucionó un problema que causaba que la pantalla no se limpiara correctamente al iniciar una actualización OTA, mostrando el mensaje de "Actualizando..." sobre los datos anteriores.
+Después de configurar WiFi:
+
+| Página | URL |
+|---|---|
+| Dashboard | `http://[IP]/` |
+| Actualización OTA | `http://[IP]/update` |
+| WebSerial | `http://[IP]/webserial` |
+| Administración ESP-NOW (Escanear) | `http://[IP]/espnow-manager` |
+| Dashboard multi-sensor | `http://[IP]/espnow_dashboard` |
+
+## Home Assistant (MQTT)
+
+Configura el broker (IP, puerto, usuario y contraseña de Mosquitto) desde el dashboard. El dispositivo aparece solo gracias a Auto-Discovery.
+
+| Topic | Dirección | Descripción |
+|---|---|---|
+| `nivel_tinaco/{mac}/state` | ESP32 → HA | Datos del sensor (JSON) |
+| `nivel_tinaco/{mac}/cmd` | HA → ESP32 | `FILLING_ON` / `FILLING_OFF` |
+| `nivel_tinaco/{mac}/pump_state` | ESP32 → HA | Estado de la bomba (`ON`/`OFF`) |
+| `nivel_tinaco/{mac}/status` | ESP32 → HA | Disponibilidad (`online`/`offline`) |
+
+Si el broker se cae (reinicio de HA), el ESP32 reintenta indefinidamente (backoff de 5 s a 60 s).
+
+## ESP-NOW (varias unidades)
+
+Las unidades deben estar en el **mismo canal WiFi**; conectarlas al mismo router lo garantiza.
+
+1. Enciende las unidades. Durante los **primeros 3 minutos** cada una se anuncia (PING cada 5 s) y escucha.
+2. Si una ya llevaba tiempo encendida, pulsa **Escanear** en su página ESP-NOW: abre otra ventana de 3 minutos.
+3. Al encontrarse quedan como *peers*; desde entonces la radio se mantiene despierta para no perder paquetes (sube el consumo).
+
+## Consumo
+
+Medido con un FNIRSI FNB58 a 5.2 V, pantalla apagada:
+
+| Firmware | Corriente | Potencia | Chip ESP32 (ambiente ~22 °C) |
+|---|---|---|---|
+| ≤ 3.3.4 | 0.167 A | 0.87 W | 37 °C y subiendo |
+| 3.4.0 | ~0.045 A | ~0.24 W | 29 °C estable |
+
+El ahorro de energía WiFi (modem sleep) se desactiva solo con peers ESP-NOW o durante el descubrimiento. A cambio, el ping sube a ~150 ms, cosa que no afecta al sensor.
+
+## API REST (resumen)
+
+| Método | Endpoint | Descripción |
+|---|---|---|
+| GET | `/api/status` | Estado + diagnóstico (`temp_c`, `cpu_mhz`, `wifi_sleep`, `rssi`, `uptime_s`, `heap`, `reset_reason`, ESP-NOW) |
+| GET | `/api/sensor-data` | Lectura actual (litros, distancia, %, estado) |
+| GET | `/api/last-readings` | Muestras RAW del último filtro sigma (`rt`/`rr` = reintentos) |
+| GET | `/api/sensor-history` | Últimas 60 lecturas |
+| GET/POST | `/api/sensor/config` | Configuración del sensor, intervalos, zona horaria, filtro sigma |
+| GET/POST | `/api/mqtt/config` | Configuración MQTT |
+| POST | `/api/calibrate-bottom` | Calibrar fondo del contenedor vacío |
+| POST | `/api/restart` | Reiniciar |
+| GET | `/api/esp-now/status` | Estado ESP-NOW |
+| POST | `/api/esp-now/scan` | Abrir ventana de descubrimiento (3 min) |
+
+La lista completa está en la [Wiki](https://github.com/Kirajav/ESP32-Heltec-Ultrasonic-Liquid-Level-Sensor/wiki).
+
+## Arquitectura
+
+```
+src/
+├── main.cpp              # Punto de entrada
+├── AppManager.h/cpp      # Coordinador: red, web server, lectura, MQTT, ESP-NOW
+lib/
+├── Config/               # Configuración por dominios (red, sensor, MQTT, ESP-NOW, hardware)
+├── DisplayManager/       # OLED SSD1306 + botón PRG + auto-sleep
+├── SensorFramework/      # LiquidLevelSensor (filtro sigma, estabilidad, litros)
+├── ESPNowManager/        # Comunicación ESP-NOW entre unidades
+├── HomeAssistantMQTT/    # MQTT + Auto-Discovery
+├── Logger/               # UnifiedLogger + NTPTimeSync
+└── Interfaces/           # ISensor, ILogger, IDisplayManager, IConfigManager
+data/web/
+├── captive_portal/       # Portal de configuración (src/ → minificado → .gz)
+├── dashboard/            # Dashboard principal
+├── esp_now/              # Administración ESP-NOW
+└── espnow_dashboard/     # Dashboard multi-sensor
+```
+
+Los archivos web se minifican y comprimen automáticamente en cada build (`scripts/minify_web.py`). Solo se editan los de `data/web/*/src/`.
+
+## Tests
+
+```bash
+pio test -e heltec_test -f test_sensor_config
+pio test -e heltec_test -f test_network_config
+pio test -e heltec_test -f test_app_config
+```
+
+Los tests de frontend (`test/test_web/*.html`) se abren en el navegador.
+
+## Seguridad
+
+Pensado para una **red local de confianza**: la página OTA (`/update`) no pide contraseña y la API no tiene autenticación. No lo expongas a Internet.
+
+## Build actual (3.4.0)
+
+```
+RAM:   [==        ]  18.3% (60,064 / 327,680 bytes)
+Flash: [========= ]  89.6% (1,409,837 / 1,572,864 bytes)
+```
+
+## Licencia
+
+[MIT](LICENSE)

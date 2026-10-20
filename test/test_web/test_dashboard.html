@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit Tests - Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .test-pass {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            color: #155724;
+        }
+        .test-fail {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            color: #721c24;
+        }
+        .test-running {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            color: #856404;
+        }
+        .summary {
+            font-size: 1.2em;
+            font-weight: bold;
+            padding: 15px;
+            text-align: center;
+            border-radius: 8px;
+        }
+        .summary.pass {
+            background: #28a745;
+            color: white;
+        }
+        .summary.fail {
+            background: #dc3545;
+            color: white;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Unit Tests - Dashboard JavaScript</h1>
+        <p>Tests para las funciones del dashboard de sensor de agua</p>
+        <button onclick="runAllTests()">▶️ Ejecutar Tests</button>
+    </div>
+    
+    <div id="results"></div>
+    <div id="summary"></div>
+
+    <script>
+        // ====================================================================
+        // MINI FRAMEWORK DE TESTING
+        // ====================================================================
+        const TestRunner = {
+            tests: [],
+            results: [],
+            
+            // Registrar un test
+            test(name, fn) {
+                this.tests.push({ name, fn });
+            },
+            
+            // Ejecutar todos los tests
+            async run() {
+                this.results = [];
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = '';
+                
+                for (const test of this.tests) {
+                    const result = await this.runTest(test);
+                    this.results.push(result);
+                    this.displayResult(result);
+                }
+                
+                this.displaySummary();
+            },
+            
+            // Ejecutar un test individual
+            async runTest(test) {
+                const startTime = performance.now();
+                try {
+                    await test.fn();
+                    const endTime = performance.now();
+                    return {
+                        name: test.name,
+                        status: 'PASS',
+                        time: (endTime - startTime).toFixed(2) + 'ms'
+                    };
+                } catch (error) {
+                    const endTime = performance.now();
+                    return {
+                        name: test.name,
+                        status: 'FAIL',
+                        error: error.message,
+                        time: (endTime - startTime).toFixed(2) + 'ms'
+                    };
+                }
+            },
+            
+            // Mostrar resultado
+            displayResult(result) {
+                const resultsDiv = document.getElementById('results');
+                const div = document.createElement('div');
+                div.className = 'test-container';
+                
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `test-result test-${result.status.toLowerCase()}`;
+                
+                if (result.status === 'PASS') {
+                    resultDiv.innerHTML = `✅ ${result.name} - ${result.time}`;
+                } else {
+                    resultDiv.innerHTML = `❌ ${result.name}<br>Error: ${result.error} - ${result.time}`;
+                }
+                
+                div.appendChild(resultDiv);
+                resultsDiv.appendChild(div);
+            },
+            
+            // Mostrar resumen
+            displaySummary() {
+                const summaryDiv = document.getElementById('summary');
+                const passed = this.results.filter(r => r.status === 'PASS').length;
+                const failed = this.results.filter(r => r.status === 'FAIL').length;
+                const total = this.results.length;
+                
+                summaryDiv.innerHTML = `
+                    <div class="test-container">
+                        <div class="summary ${failed === 0 ? 'pass' : 'fail'}">
+                            ${total} Tests | ${passed} Passed | ${failed} Failed
+                        </div>
+                    </div>
+                `;
+            }
+        };
+        
+        // Assertions
+        const assert = {
+            equal(actual, expected, message = '') {
+                if (actual !== expected) {
+                    throw new Error(`${message} - Expected ${expected}, got ${actual}`);
+                }
+            },
+            
+            notEqual(actual, expected, message = '') {
+                if (actual === expected) {
+                    throw new Error(`${message} - Expected NOT ${expected}, got ${actual}`);
+                }
+            },
+            
+            true(actual, message = '') {
+                if (actual !== true) {
+                    throw new Error(`${message} - Expected true, got ${actual}`);
+                }
+            },
+            
+            false(actual, message = '') {
+                if (actual !== false) {
+                    throw new Error(`${message} - Expected false, got ${actual}`);
+                }
+            },
+            
+            isNull(actual, message = '') {
+                if (actual !== null) {
+                    throw new Error(`${message} - Expected null, got ${actual}`);
+                }
+            },
+            
+            notNull(actual, message = '') {
+                if (actual === null) {
+                    throw new Error(`${message} - Expected not null`);
+                }
+            },
+            
+            throws(fn, message = '') {
+                try {
+                    fn();
+                    throw new Error(`${message} - Expected function to throw`);
+                } catch (e) {
+                    if (e.message.includes('Expected function to throw')) {
+                        throw e;
+                    }
+                    // OK, función lanzó error como esperábamos
+                }
+            }
+        };
+        
+        // ====================================================================
+        // FUNCIONES DEL DASHBOARD (simuladas para testing)
+        // ====================================================================
+        
+        function calculatePercentage(liters, capacity) {
+            if (capacity === 0) return 0;
+            const percentage = (liters / capacity) * 100;
+            return Math.round(Math.min(100, Math.max(0, percentage)));
+        }
+        
+        function formatDistance(distance) {
+            if (distance < 0) return 'Error';
+            if (distance > 400) return 'Fuera de rango';
+            return distance.toFixed(1) + ' cm';
+        }
+        
+        function validateSensorData(data) {
+            if (!data || typeof data !== 'object') return false;
+            if (typeof data.distancia !== 'number') return false;
+            if (typeof data.litros !== 'number') return false;
+            if (typeof data.porcentaje !== 'number') return false;
+            if (data.distancia < 0 || data.distancia > 400) return false;
+            if (data.litros < 0) return false;
+            if (data.porcentaje < 0 || data.porcentaje > 100) return false;
+            return true;
+        }
+        
+        function getStatusColor(percentage) {
+            if (percentage >= 70) return 'green';
+            if (percentage >= 30) return 'yellow';
+            return 'red';
+        }
+        
+        function parseAPIResponse(json) {
+            try {
+                const data = JSON.parse(json);
+                return data;
+            } catch (e) {
+                throw new Error('Invalid JSON');
+            }
+        }
+        
+        // ====================================================================
+        // TESTS DEL DASHBOARD
+        // ====================================================================
+        
+        TestRunner.test('Cálculo de porcentaje - tanque al 50%', () => {
+            const result = calculatePercentage(550, 1100);
+            assert.equal(result, 50, 'Porcentaje debería ser 50%');
+        });
+        
+        TestRunner.test('Cálculo de porcentaje - tanque vacío', () => {
+            const result = calculatePercentage(0, 1100);
+            assert.equal(result, 0, 'Porcentaje debería ser 0%');
+        });
+        
+        TestRunner.test('Cálculo de porcentaje - tanque lleno', () => {
+            const result = calculatePercentage(1100, 1100);
+            assert.equal(result, 100, 'Porcentaje debería ser 100%');
+        });
+        
+        TestRunner.test('Cálculo de porcentaje - capacidad cero', () => {
+            const result = calculatePercentage(100, 0);
+            assert.equal(result, 0, 'Debería retornar 0 para evitar división por cero');
+        });
+        
+        TestRunner.test('Formato de distancia - valor normal', () => {
+            const result = formatDistance(45.234);
+            assert.equal(result, '45.2 cm', 'Distancia formateada correctamente');
+        });
+        
+        TestRunner.test('Formato de distancia - valor negativo', () => {
+            const result = formatDistance(-10);
+            assert.equal(result, 'Error', 'Distancia negativa es error');
+        });
+        
+        TestRunner.test('Formato de distancia - fuera de rango', () => {
+            const result = formatDistance(450);
+            assert.equal(result, 'Fuera de rango', 'Distancia > 400cm es fuera de rango');
+        });
+        
+        TestRunner.test('Validación de datos del sensor - datos válidos', () => {
+            const data = {
+                distancia: 50.5,
+                litros: 750.2,
+                porcentaje: 68
+            };
+            const result = validateSensorData(data);
+            assert.true(result, 'Datos válidos deberían pasar validación');
+        });
+        
+        TestRunner.test('Validación de datos del sensor - datos inválidos (negativo)', () => {
+            const data = {
+                distancia: -10,
+                litros: 750.2,
+                porcentaje: 68
+            };
+            const result = validateSensorData(data);
+            assert.false(result, 'Distancia negativa debe fallar validación');
+        });
+        
+        TestRunner.test('Validación de datos del sensor - datos incompletos', () => {
+            const data = {
+                distancia: 50.5,
+                litros: 750.2
+                // falta porcentaje
+            };
+            const result = validateSensorData(data);
+            assert.false(result, 'Datos incompletos deben fallar validación');
+        });
+        
+        TestRunner.test('Color de estado - tanque lleno (>70%)', () => {
+            const result = getStatusColor(85);
+            assert.equal(result, 'green', 'Tanque >70% debería ser verde');
+        });
+        
+        TestRunner.test('Color de estado - tanque medio (30-70%)', () => {
+            const result = getStatusColor(50);
+            assert.equal(result, 'yellow', 'Tanque 30-70% debería ser amarillo');
+        });
+        
+        TestRunner.test('Color de estado - tanque vacío (<30%)', () => {
+            const result = getStatusColor(15);
+            assert.equal(result, 'red', 'Tanque <30% debería ser rojo');
+        });
+        
+        TestRunner.test('Parse respuesta API - JSON válido', () => {
+            const json = '{"distancia":45.2,"litros":735.5,"porcentaje":67}';
+            const result = parseAPIResponse(json);
+            assert.equal(result.distancia, 45.2, 'Distancia parseada correctamente');
+            assert.equal(result.litros, 735.5, 'Litros parseados correctamente');
+            assert.equal(result.porcentaje, 67, 'Porcentaje parseado correctamente');
+        });
+        
+        TestRunner.test('Parse respuesta API - JSON inválido', () => {
+            const json = '{invalid json}';
+            assert.throws(() => {
+                parseAPIResponse(json);
+            }, 'JSON inválido debe lanzar error');
+        });
+        
+        TestRunner.test('Actualización de UI - valores numéricos', () => {
+            // Simular DOM
+            document.body.innerHTML += '<div id="distancia"></div>';
+            document.body.innerHTML += '<div id="litros"></div>';
+            document.body.innerHTML += '<div id="porcentaje"></div>';
+            
+            const distanciaEl = document.getElementById('distancia');
+            const litrosEl = document.getElementById('litros');
+            const porcentajeEl = document.getElementById('porcentaje');
+            
+            // Actualizar valores
+            distanciaEl.textContent = '45.2 cm';
+            litrosEl.textContent = '735.5 L';
+            porcentajeEl.textContent = '67%';
+            
+            assert.equal(distanciaEl.textContent, '45.2 cm', 'Distancia actualizada en DOM');
+            assert.equal(litrosEl.textContent, '735.5 L', 'Litros actualizados en DOM');
+            assert.equal(porcentajeEl.textContent, '67%', 'Porcentaje actualizado en DOM');
+        });
+        
+        // ====================================================================
+        // FUNCIÓN PRINCIPAL
+        // ====================================================================
+        
+        function runAllTests() {
+            TestRunner.run();
+        }
+        
+        // Ejecutar automáticamente al cargar
+        window.addEventListener('load', () => {
+            setTimeout(runAllTests, 500);
+        });
+    </script>
+</body>
+</html>

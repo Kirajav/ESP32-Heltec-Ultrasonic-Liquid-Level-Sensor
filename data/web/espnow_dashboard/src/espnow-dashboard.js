@@ -1,0 +1,763 @@
+﻿// ESP-NOW DASHBOARD - MOBILE FIRST MULTI-SENSOR INTERFACE
+let sensorData = [];
+let selectedSensor = null;
+let updateInterval = null;
+let containerType = 'tank';
+let containerSVGs = {};
+
+// Estado de la aplicación
+const appState = {
+    sensors: [],
+    selectedSensorId: null,
+    networkStatus: 'loading',
+    lastUpdate: null,
+    isLoading: false
+};
+
+// Inicialización cuando se carga la página
+window.addEventListener('load', () => {
+    console.log('🚀 Iniciando ESP-NOW Dashboard...');
+    
+    initializeApp();
+    setupEventListeners();
+    loadSensorData();
+    
+    // Actualizar datos cada 30 segundos
+    updateInterval = setInterval(loadSensorData, 30000);
+});
+
+// Inicializar la aplicación
+function initializeApp() {
+    console.log('📱 Inicializando interfaz móvil adaptativa...');
+    
+    // Inicializar SVGs de contenedores
+    initContainerSVGs();
+    
+    // Configurar estado inicial
+    updateNetworkStatus('loading');
+    showNoSensorSelected();
+}
+
+// Configurar event listeners
+function setupEventListeners() {
+    // Botón de volver
+    const backBtn = document.getElementById('back-btn');
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            window.location.href = '/dashboard';
+        });
+    }
+    
+    // Botón de actualizar
+    const refreshBtn = document.getElementById('refresh-btn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+            loadSensorData(true);
+        });
+    }
+    
+    // Botón de configuración
+    const settingsBtn = document.getElementById('settings-btn');
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', showGlobalSettings);
+    }
+    
+    // Selector de tipo de contenedor
+    const containerSelect = document.getElementById('container-type');
+    if (containerSelect) {
+        containerSelect.addEventListener('change', (e) => {
+            containerType = e.target.value;
+            if (selectedSensor) {
+                renderTankVisualization(selectedSensor);
+            }
+        });
+    }
+    
+    // Modal de configuración
+    setupModalListeners();
+}
+
+// Cargar datos de sensores
+async function loadSensorData(showLoading = false) {
+    if (showLoading) {
+        setLoadingState(true);
+        showToast('Actualizando datos...', 'info');
+    }
+    
+    try {
+        console.log('📡 Cargando datos de sensores ESP-NOW...');
+        
+        const response = await fetch('/multi-sensor-data');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data && data.slaves && Array.isArray(data.slaves)) {
+            appState.sensors = data.slaves;
+            appState.lastUpdate = new Date();
+            
+            console.log(`✅ Cargados ${data.slaves.length} sensores:`, data.slaves);
+            
+            updateNetworkStatus('connected');
+            renderSensorChips();
+            updateSensorCount(data.slaves.length);
+            
+            // Si hay un sensor seleccionado, actualizar sus datos
+            if (appState.selectedSensorId) {
+                const sensor = data.slaves.find(s => s.id === appState.selectedSensorId);
+                if (sensor) {
+                    updateSelectedSensorData(sensor);
+                }
+            }
+            
+            if (showLoading) {
+                showToast('Datos actualizados correctamente', 'success');
+            }
+        } else {
+            throw new Error('Formato de datos inválido');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error cargando datos de sensores:', error);
+        
+        updateNetworkStatus('error');
+        showNoSensorsAvailable();
+        
+        if (showLoading) {
+            showToast('Error actualizando datos', 'error');
+        }
+        
+        // En caso de error, usar datos mock para demo
+        loadMockData();
+    } finally {
+        setLoadingState(false);
+    }
+}
+
+// Cargar datos mock para demostración
+function loadMockData() {
+    console.log('🎭 Cargando datos mock para demostración...');
+    
+    const mockSensors = [
+        {
+            id: 'SLAVE_01',
+            name: 'Cisterna Principal',
+            percentage: 75,
+            liquidLevel: '3000',
+            distance: '50',
+            rssi: -45,
+            lastSeen: new Date().toISOString(),
+            mac: '24:0A:C4:XX:XX:01',
+            firmware: '1.2.3',
+            status: 'online'
+        },
+        {
+            id: 'SLAVE_02', 
+            name: 'Tanque Azotea',
+            percentage: 45,
+            liquidLevel: '900',
+            distance: '110',
+            rssi: -62,
+            lastSeen: new Date(Date.now() - 60000).toISOString(),
+            mac: '24:0A:C4:XX:XX:02',
+            firmware: '1.2.3',
+            status: 'online'
+        },
+        {
+            id: 'SLAVE_03',
+            name: 'Depósito Jardín', 
+            percentage: 20,
+            liquidLevel: '200',
+            distance: '160',
+            rssi: -78,
+            lastSeen: new Date(Date.now() - 300000).toISOString(),
+            mac: '24:0A:C4:XX:XX:03',
+            firmware: '1.2.2',
+            status: 'warning'
+        }
+    ];
+    
+    appState.sensors = mockSensors;
+    appState.lastUpdate = new Date();
+    
+    updateNetworkStatus('connected');
+    renderSensorChips();
+    updateSensorCount(mockSensors.length);
+    
+    showToast('Mostrando datos de demostración', 'info');
+}
+
+// Renderizar chips de sensores
+function renderSensorChips() {
+    const chipContainer = document.getElementById('chip-container');
+    if (!chipContainer) return;
+    
+    if (appState.sensors.length === 0) {
+        chipContainer.innerHTML = `
+            <div class="chip loading-chip">
+                <div class="chip-icon">
+                    <span class="material-symbols-outlined">sensors_off</span>
+                </div>
+                <div class="chip-info">
+                    <span class="chip-name">No hay sensores disponibles</span>
+                    <span class="chip-status">Verifica la conexión ESP-NOW</span>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    chipContainer.innerHTML = '';
+    
+    appState.sensors.forEach(sensor => {
+        const chip = document.createElement('div');
+        chip.className = `chip ${appState.selectedSensorId === sensor.id ? 'selected' : ''}`;
+        chip.dataset.sensorId = sensor.id;
+        
+        const statusIcon = getStatusIcon(sensor);
+        const statusText = getStatusText(sensor);
+        
+        chip.innerHTML = `
+            <div class="chip-icon">
+                <span class="material-symbols-outlined">${statusIcon}</span>
+            </div>
+            <div class="chip-info">
+                <span class="chip-name">${sensor.name || sensor.id}</span>
+                <span class="chip-status">${statusText}</span>
+            </div>
+            <div class="chip-percentage">${sensor.percentage || 0}%</div>
+        `;
+        
+        chip.addEventListener('click', () => selectSensor(sensor.id));
+        chipContainer.appendChild(chip);
+    });
+}
+
+// Obtener icono de estado del sensor
+function getStatusIcon(sensor) {
+    if (!sensor.lastSeen) return 'sensors_off';
+    
+    const lastSeen = new Date(sensor.lastSeen);
+    const now = new Date();
+    const diffMinutes = (now - lastSeen) / 1000 / 60;
+    
+    if (diffMinutes > 10) return 'sensors_off';
+    if (diffMinutes > 5) return 'warning';
+    if (sensor.percentage < 10) return 'water_drop_off';
+    return 'sensors';
+}
+
+// Obtener texto de estado del sensor
+function getStatusText(sensor) {
+    if (!sensor.lastSeen) return 'Sin datos';
+    
+    const lastSeen = new Date(sensor.lastSeen);
+    const now = new Date();
+    const diffMinutes = Math.floor((now - lastSeen) / 1000 / 60);
+    
+    if (diffMinutes > 10) return 'Desconectado';
+    if (diffMinutes > 5) return 'Señal débil';
+    if (diffMinutes <= 1) return 'En línea';
+    return `${diffMinutes}min ago`;
+}
+
+// Seleccionar un sensor
+function selectSensor(sensorId) {
+    console.log(`🎯 Seleccionando sensor: ${sensorId}`);
+    
+    const sensor = appState.sensors.find(s => s.id === sensorId);
+    if (!sensor) {
+        console.error('❌ Sensor no encontrado:', sensorId);
+        return;
+    }
+    
+    appState.selectedSensorId = sensorId;
+    selectedSensor = sensor;
+    
+    // Actualizar chips
+    renderSensorChips();
+    
+    // Mostrar dashboard del sensor
+    showSensorDashboard(sensor);
+    
+    // Scroll al dashboard en móvil
+    const dashboard = document.getElementById('sensor-dashboard');
+    if (dashboard && window.innerWidth < 768) {
+        dashboard.scrollIntoView({ behavior: 'smooth' });
+    }
+}
+
+// Mostrar dashboard del sensor seleccionado
+function showSensorDashboard(sensor) {
+    const noSensorSelected = document.getElementById('no-sensor-selected');
+    const dashboardContent = document.getElementById('dashboard-content');
+    
+    if (noSensorSelected) noSensorSelected.style.display = 'none';
+    if (dashboardContent) dashboardContent.style.display = 'block';
+    
+    updateSensorHeader(sensor);
+    updateMetrics(sensor);
+    updateSensorInfo(sensor);
+    renderTankVisualization(sensor);
+    
+    console.log('📊 Dashboard actualizado para sensor:', sensor.id);
+}
+
+// Mostrar estado sin sensor seleccionado
+function showNoSensorSelected() {
+    const noSensorSelected = document.getElementById('no-sensor-selected');
+    const dashboardContent = document.getElementById('dashboard-content');
+    
+    if (noSensorSelected) noSensorSelected.style.display = 'flex';
+    if (dashboardContent) dashboardContent.style.display = 'none';
+}
+
+// Mostrar estado sin sensores disponibles
+function showNoSensorsAvailable() {
+    const chipContainer = document.getElementById('chip-container');
+    if (chipContainer) {
+        chipContainer.innerHTML = `
+            <div class="chip loading-chip">
+                <div class="chip-icon">
+                    <span class="material-symbols-outlined">wifi_off</span>
+                </div>
+                <div class="chip-info">
+                    <span class="chip-name">Error de conexión</span>
+                    <span class="chip-status">No se pueden cargar los sensores</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    showNoSensorSelected();
+}
+
+// Actualizar header del sensor
+function updateSensorHeader(sensor) {
+    const nameElement = document.getElementById('selected-sensor-name');
+    const idElement = document.getElementById('selected-sensor-id');
+    const statusElement = document.getElementById('selected-sensor-status');
+    
+    if (nameElement) nameElement.textContent = sensor.name || sensor.id;
+    if (idElement) idElement.textContent = sensor.id;
+    
+    if (statusElement) {
+        const statusText = getStatusText(sensor);
+        statusElement.textContent = statusText;
+        
+        // Actualizar clase CSS según el estado
+        statusElement.className = 'sensor-status';
+        if (statusText === 'En línea') {
+            statusElement.style.background = 'var(--success-color)';
+        } else if (statusText.includes('Desconectado')) {
+            statusElement.style.background = 'var(--error-color)';
+        } else {
+            statusElement.style.background = 'var(--warning-color)';
+        }
+    }
+}
+
+// Actualizar métricas
+function updateMetrics(sensor) {
+    const percentageElement = document.getElementById('metric-percentage');
+    const distanceElement = document.getElementById('metric-distance');
+    const litersElement = document.getElementById('metric-liters');
+    const lastUpdateElement = document.getElementById('metric-last-update');
+    
+    if (percentageElement) {
+        percentageElement.textContent = `${sensor.percentage || 0}%`;
+    }
+    
+    if (distanceElement) {
+        distanceElement.textContent = `${sensor.distance || '--'} cm`;
+    }
+    
+    if (litersElement) {
+        const liters = sensor.liquidLevel || calculateLiters(sensor.distance, sensor.percentage);
+        litersElement.textContent = `${liters}L`;
+    }
+    
+    if (lastUpdateElement && sensor.lastSeen) {
+        const lastSeen = new Date(sensor.lastSeen);
+        const timeAgo = getTimeAgo(lastSeen);
+        lastUpdateElement.textContent = timeAgo;
+    }
+}
+
+// Actualizar información del sensor
+function updateSensorInfo(sensor) {
+    const macElement = document.getElementById('info-mac');
+    const rssiElement = document.getElementById('info-rssi');
+    const lastSeenElement = document.getElementById('info-last-seen');
+    const firmwareElement = document.getElementById('info-firmware');
+    
+    if (macElement) macElement.textContent = sensor.mac || '--';
+    if (rssiElement) rssiElement.textContent = `${sensor.rssi || '--'} dBm`;
+    if (firmwareElement) firmwareElement.textContent = sensor.firmware || 'N/A';
+    
+    if (lastSeenElement && sensor.lastSeen) {
+        const lastSeen = new Date(sensor.lastSeen);
+        lastSeenElement.textContent = lastSeen.toLocaleString();
+    }
+}
+
+// Renderizar visualización del tanque
+function renderTankVisualization(sensor) {
+    const tankContainer = document.getElementById('tank-container');
+    if (!tankContainer) return;
+    
+    const percentage = sensor.percentage || 0;
+    const svg = generateTankSVG(containerType, percentage);
+    
+    tankContainer.innerHTML = svg;
+    
+    // Iniciar animación
+    setTimeout(() => {
+        animateTank(percentage);
+    }, 100);
+}
+
+// Generar SVG del tanque (copiado del dashboard principal)
+function generateTankSVG(type, percentage = 0) {
+    const width = 280;
+    const height = 400;
+    
+    let tankPath, liquidPath;
+    
+    switch (type) {
+        case 'cistern':
+            tankPath = 'M40,360 L40,80 Q40,40 80,40 L200,40 Q240,40 240,80 L240,360 Q240,380 200,380 L80,380 Q40,380 40,360 Z';
+            liquidPath = 'M50,370 L50,90 Q50,50 90,50 L190,50 Q230,50 230,90 L230,370 Q230,375 190,375 L90,375 Q50,375 50,370 Z';
+            break;
+        case 'container':
+            tankPath = 'M60,350 L60,90 L220,90 L220,350 L60,350 Z';
+            liquidPath = 'M70,340 L70,100 L210,100 L210,340 L70,340 Z';
+            break;
+        default: // tank
+            tankPath = 'M90,360 L90,120 Q90,80 130,80 L150,80 Q190,80 190,120 L190,360 Q190,380 150,380 L130,380 Q90,380 90,360 Z';
+            liquidPath = 'M100,370 L100,130 Q100,90 140,90 L140,90 Q180,90 180,130 L180,370 Q180,375 140,375 L140,375 Q100,375 100,370 Z';
+    }
+    
+    const liquidHeight = (percentage / 100) * 280;
+    const liquidY = 370 - liquidHeight;
+    
+    return `
+        <svg class="tank-svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+            <defs>
+                <linearGradient id="liquidGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style="stop-color:#4FC3F7;stop-opacity:0.9"/>
+                    <stop offset="50%" style="stop-color:#29B6F6;stop-opacity:0.8"/>
+                    <stop offset="100%" style="stop-color:#0288D1;stop-opacity:1"/>
+                </linearGradient>
+                <linearGradient id="tankGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:rgba(255,255,255,0.1);stop-opacity:1"/>
+                    <stop offset="100%" style="stop-color:rgba(255,255,255,0.05);stop-opacity:1"/>
+                </linearGradient>
+            </defs>
+            
+            <!-- Tanque exterior -->
+            <path d="${tankPath}" fill="url(#tankGradient)" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
+            
+            <!-- Liquido -->
+            <clipPath id="tankClip">
+                <path d="${liquidPath}"/>
+            </clipPath>
+            
+            <g clip-path="url(#tankClip)">
+                <rect id="liquid-level" x="0" y="${liquidY}" width="${width}" height="${liquidHeight}" 
+                      fill="url(#liquidGradient)" opacity="0.9"/>
+            </g>
+            
+            <!-- Indicador de porcentaje -->
+            <text x="${width/2}" y="30" text-anchor="middle" fill="white" font-size="20" font-weight="bold">
+                ${percentage}%
+            </text>
+            
+            <!-- Líneas de medición -->
+            <g stroke="rgba(255,255,255,0.3)" stroke-width="1">
+                <line x1="250" y1="120" x2="270" y2="120"/>
+                <line x1="250" y1="200" x2="270" y2="200"/>
+                <line x1="250" y1="280" x2="270" y2="280"/>
+                <line x1="250" y1="360" x2="270" y2="360"/>
+            </g>
+        </svg>
+    `;
+}
+
+// Animar el tanque
+function animateTank(percentage) {
+    const liquidLevel = document.getElementById('liquid-level');
+    if (liquidLevel) {
+        const liquidHeight = (percentage / 100) * 280;
+        const liquidY = 370 - liquidHeight;
+        
+        liquidLevel.style.transition = 'all 1.5s ease-in-out';
+        liquidLevel.setAttribute('y', liquidY);
+        liquidLevel.setAttribute('height', liquidHeight);
+        
+        // Actualizar color según el porcentaje
+        updateLiquidColor(percentage);
+    }
+}
+
+// Actualizar color del agua
+function updateLiquidColor(percentage) {
+    const liquidLevel = document.getElementById('liquid-level');
+    if (!liquidLevel) return;
+    
+    let color1, color2, color3;
+    
+    if (percentage >= 75) {
+        color1 = '#4CAF50'; color2 = '#66BB6A'; color3 = '#2E7D32';
+    } else if (percentage >= 50) {
+        color1 = '#4FC3F7'; color2 = '#29B6F6'; color3 = '#0288D1';
+    } else if (percentage >= 25) {
+        color1 = '#FFB74D'; color2 = '#FF9800'; color3 = '#F57C00';
+    } else {
+        color1 = '#EF5350'; color2 = '#F44336'; color3 = '#C62828';
+    }
+    
+    // Actualizar gradiente
+    const gradient = document.getElementById('liquidGradient');
+    if (gradient) {
+        const stops = gradient.querySelectorAll('stop');
+        if (stops.length >= 3) {
+            stops[0].setAttribute('style', `stop-color:${color1};stop-opacity:0.9`);
+            stops[1].setAttribute('style', `stop-color:${color2};stop-opacity:0.8`);  
+            stops[2].setAttribute('style', `stop-color:${color3};stop-opacity:1`);
+        }
+    }
+}
+
+// Inicializar SVGs de contenedores
+function initContainerSVGs() {
+    containerSVGs = {
+        tank: 'tanque',
+        cistern: 'cisterna',
+        container: 'contenedor'
+    };
+}
+
+// Actualizar estado de red
+function updateNetworkStatus(status) {
+    const networkStatus = document.getElementById('network-status');
+    const statusDot = networkStatus?.querySelector('.status-dot');
+    const statusText = networkStatus?.querySelector('span');
+    
+    if (!statusDot || !statusText) return;
+    
+    statusDot.className = 'status-dot';
+    
+    switch (status) {
+        case 'connected':
+            statusDot.classList.add('connected');
+            statusText.textContent = 'Conectado';
+            break;
+        case 'error':
+            statusDot.classList.add('error');
+            statusText.textContent = 'Error de conexión';
+            break;
+        default:
+            statusText.textContent = 'Cargando...';
+    }
+}
+
+// Actualizar contador de sensores
+function updateSensorCount(count) {
+    const sensorCount = document.getElementById('sensor-count');
+    if (sensorCount) {
+        sensorCount.textContent = `${count} sensor${count !== 1 ? 'es' : ''}`;
+    }
+}
+
+// Actualizar datos del sensor seleccionado
+function updateSelectedSensorData(sensor) {
+    selectedSensor = sensor;
+    updateMetrics(sensor);
+    updateSensorInfo(sensor);
+    renderTankVisualization(sensor);
+}
+
+// Configurar listeners del modal
+function setupModalListeners() {
+    const modal = document.getElementById('config-modal');
+    const closeBtn = document.getElementById('modal-close');
+    const cancelBtn = document.getElementById('modal-cancel');
+    const saveBtn = document.getElementById('modal-save');
+    const configBtn = document.getElementById('sensor-config-btn');
+    
+    if (configBtn) {
+        configBtn.addEventListener('click', showSensorConfig);
+    }
+    
+    if (closeBtn) {
+        closeBtn.addEventListener('click', hideModal);
+    }
+    
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', hideModal);
+    }
+    
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveSensorConfig);
+    }
+    
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                hideModal();
+            }
+        });
+    }
+}
+
+// Mostrar configuración del sensor
+function showSensorConfig() {
+    if (!selectedSensor) return;
+    
+    const modal = document.getElementById('config-modal');
+    const nameInput = document.getElementById('sensor-name-input');
+    const intervalInput = document.getElementById('sensor-interval');
+    const containerSelect = document.getElementById('sensor-container-type');
+    
+    if (nameInput) nameInput.value = selectedSensor.name || selectedSensor.id;
+    if (intervalInput) intervalInput.value = selectedSensor.interval || 30;
+    if (containerSelect) containerSelect.value = containerType;
+    
+    if (modal) modal.style.display = 'flex';
+}
+
+// Mostrar configuración global
+function showGlobalSettings() {
+    showToast('Configuración global en desarrollo', 'info');
+}
+
+// Ocultar modal
+function hideModal() {
+    const modal = document.getElementById('config-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+// Guardar configuración del sensor
+function saveSensorConfig() {
+    const nameInput = document.getElementById('sensor-name-input');
+    const intervalInput = document.getElementById('sensor-interval');
+    const containerSelect = document.getElementById('sensor-container-type');
+    
+    const newName = nameInput?.value.trim();
+    const newInterval = parseInt(intervalInput?.value);
+    const newContainerType = containerSelect?.value;
+    
+    if (newName && selectedSensor) {
+        selectedSensor.name = newName;
+        containerType = newContainerType || containerType;
+        
+        // Actualizar UI
+        renderSensorChips();
+        updateSensorHeader(selectedSensor);
+        renderTankVisualization(selectedSensor);
+        
+        showToast('Configuración guardada', 'success');
+    }
+    
+    hideModal();
+}
+
+// Establecer estado de carga
+function setLoadingState(loading) {
+    appState.isLoading = loading;
+    
+    const refreshBtn = document.getElementById('refresh-btn');
+    if (refreshBtn) {
+        if (loading) {
+            refreshBtn.classList.add('loading');
+        } else {
+            refreshBtn.classList.remove('loading');
+        }
+    }
+}
+
+// Funciones utilitarias
+function calculateLiters(distance, percentage) {
+    if (!distance && !percentage) return 0;
+    
+    // Cálculo básico basado en el porcentaje
+    if (percentage) {
+        return Math.round((percentage / 100) * 4000); // Asumiendo capacidad máxima de 4000L
+    }
+    
+    // Cálculo alternativo basado en distancia
+    if (distance) {
+        const maxDistance = 200; // cm
+        const calculatedPercentage = Math.max(0, ((maxDistance - distance) / maxDistance) * 100);
+        return Math.round((calculatedPercentage / 100) * 4000);
+    }
+    
+    return 0;
+}
+
+function getTimeAgo(date) {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMinutes = Math.floor(diffMs / 1000 / 60);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffMinutes < 1) return 'Ahora';
+    if (diffMinutes < 60) return `${diffMinutes}min`;
+    if (diffHours < 24) return `${diffHours}h`;
+    return `${diffDays}d`;
+}
+
+// Mostrar toast
+function showToast(message, type = 'info') {
+    const toast = document.getElementById('toast');
+    const toastIcon = document.getElementById('toast-icon');
+    const toastMessage = document.getElementById('toast-message');
+    
+    if (!toast || !toastIcon || !toastMessage) return;
+    
+    const icons = {
+        success: '✅',
+        error: '❌', 
+        warning: '⚠️',
+        info: 'ℹ️'
+    };
+    
+    toastIcon.textContent = icons[type] || icons.info;
+    toastMessage.textContent = message;
+    
+    toast.classList.add('show');
+    
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 4000);
+    
+    console.log(`📢 Toast: ${message} (${type})`);
+}
+
+// Limpiar al salir
+window.addEventListener('beforeunload', () => {
+    if (updateInterval) {
+        clearInterval(updateInterval);
+    }
+});
+
+// Manejo de errores globales
+window.addEventListener('error', (e) => {
+    console.error('❌ Error global:', e.error);
+    showToast('Error inesperado en la aplicación', 'error');
+});
+
+// Debug: Exponer funciones para testing
+if (typeof window !== 'undefined') {
+    window.espnowDebug = {
+        appState,
+        loadMockData,
+        selectSensor,
+        loadSensorData
+    };
+}

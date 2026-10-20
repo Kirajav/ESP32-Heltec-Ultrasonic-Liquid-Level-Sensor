@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit Tests - Captive Portal</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .test-pass {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            color: #155724;
+        }
+        .test-fail {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            color: #721c24;
+        }
+        .summary {
+            font-size: 1.2em;
+            font-weight: bold;
+            padding: 15px;
+            text-align: center;
+            border-radius: 8px;
+        }
+        .summary.pass {
+            background: #28a745;
+            color: white;
+        }
+        .summary.fail {
+            background: #dc3545;
+            color: white;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Unit Tests - Captive Portal</h1>
+        <p>Tests para las funciones del portal cautivo de configuración WiFi</p>
+        <button onclick="runAllTests()">▶️ Ejecutar Tests</button>
+    </div>
+    
+    <div id="results"></div>
+    <div id="summary"></div>
+
+    <script src="test_framework.js"></script>
+    <script>
+        // ====================================================================
+        // FUNCIONES DEL CAPTIVE PORTAL (simuladas para testing)
+        // ====================================================================
+        
+        function validateSSID(ssid) {
+            if (!ssid || typeof ssid !== 'string') return false;
+            if (ssid.length === 0 || ssid.length > 32) return false;
+            return true;
+        }
+        
+        function validatePassword(password) {
+            if (typeof password !== 'string') return false;
+            // WPA2 requiere mínimo 8 caracteres
+            if (password.length > 0 && password.length < 8) return false;
+            if (password.length > 63) return false;
+            return true;
+        }
+        
+        function parseNetworkList(jsonArray) {
+            try {
+                const networks = JSON.parse(jsonArray);
+                if (!Array.isArray(networks)) {
+                    throw new Error('Not an array');
+                }
+                return networks.map(net => ({
+                    ssid: net.ssid || '',
+                    rssi: net.rssi || -100,
+                    secure: net.secure === 1
+                }));
+            } catch (e) {
+                throw new Error('Invalid network list JSON');
+            }
+        }
+        
+        function getSignalStrength(rssi) {
+            if (rssi >= -50) return 'Excelente';
+            if (rssi >= -60) return 'Buena';
+            if (rssi >= -70) return 'Regular';
+            return 'Débil';
+        }
+        
+        function getSignalBars(rssi) {
+            if (rssi >= -50) return 4;
+            if (rssi >= -60) return 3;
+            if (rssi >= -70) return 2;
+            if (rssi >= -80) return 1;
+            return 0;
+        }
+        
+        function createWiFiConfigPayload(ssid, password) {
+            if (!validateSSID(ssid)) {
+                throw new Error('Invalid SSID');
+            }
+            if (!validatePassword(password)) {
+                throw new Error('Invalid password');
+            }
+            return JSON.stringify({
+                ssid: ssid,
+                password: password
+            });
+        }
+        
+        function sortNetworksBySignal(networks) {
+            return networks.sort((a, b) => b.rssi - a.rssi);
+        }
+        
+        function filterDuplicateSSIDs(networks) {
+            const seen = new Set();
+            return networks.filter(net => {
+                if (seen.has(net.ssid)) return false;
+                seen.add(net.ssid);
+                return true;
+            });
+        }
+        
+        // ====================================================================
+        // TESTS DEL CAPTIVE PORTAL
+        // ====================================================================
+        
+        TestRunner.test('Validación SSID - válido', () => {
+            const result = validateSSID('MiRedWiFi');
+            assert.true(result, 'SSID válido debe pasar validación');
+        });
+        
+        TestRunner.test('Validación SSID - vacío', () => {
+            const result = validateSSID('');
+            assert.false(result, 'SSID vacío debe fallar validación');
+        });
+        
+        TestRunner.test('Validación SSID - muy largo (>32 caracteres)', () => {
+            const longSSID = 'A'.repeat(33);
+            const result = validateSSID(longSSID);
+            assert.false(result, 'SSID >32 caracteres debe fallar validación');
+        });
+        
+        TestRunner.test('Validación SSID - null', () => {
+            const result = validateSSID(null);
+            assert.false(result, 'SSID null debe fallar validación');
+        });
+        
+        TestRunner.test('Validación password - válido 8+ caracteres', () => {
+            const result = validatePassword('12345678');
+            assert.true(result, 'Password válido 8+ caracteres debe pasar validación');
+        });
+        
+        TestRunner.test('Validación password - muy corto (<8 caracteres)', () => {
+            const result = validatePassword('1234567');
+            assert.false(result, 'Password <8 caracteres debe fallar validación');
+        });
+        
+        TestRunner.test('Validación password - vacío (red abierta)', () => {
+            const result = validatePassword('');
+            assert.true(result, 'Password vacío debe ser válido para red abierta');
+        });
+        
+        TestRunner.test('Validación password - muy largo (>63 caracteres)', () => {
+            const longPwd = 'A'.repeat(64);
+            const result = validatePassword(longPwd);
+            assert.false(result, 'Password >63 caracteres debe fallar validación');
+        });
+        
+        TestRunner.test('Parse lista de redes - JSON válido', () => {
+            const json = '[{"ssid":"RedA","rssi":-45,"secure":1},{"ssid":"RedB","rssi":-65,"secure":0}]';
+            const result = parseNetworkList(json);
+            
+            assert.equal(result.length, 2, 'Debe parsear 2 redes');
+            assert.equal(result[0].ssid, 'RedA', 'Primera red debe ser RedA');
+            assert.equal(result[0].rssi, -45, 'RSSI de RedA debe ser -45');
+            assert.true(result[0].secure, 'RedA debe ser segura');
+            assert.false(result[1].secure, 'RedB no debe ser segura');
+        });
+        
+        TestRunner.test('Parse lista de redes - JSON inválido', () => {
+            const json = '{not valid json}';
+            assert.throws(() => {
+                parseNetworkList(json);
+            }, 'JSON inválido debe lanzar error');
+        });
+        
+        TestRunner.test('Fuerza de señal - Excelente (>=-50 dBm)', () => {
+            const result = getSignalStrength(-45);
+            assert.equal(result, 'Excelente', 'RSSI -45 debe ser Excelente');
+        });
+        
+        TestRunner.test('Fuerza de señal - Buena (-60 a -50 dBm)', () => {
+            const result = getSignalStrength(-55);
+            assert.equal(result, 'Buena', 'RSSI -55 debe ser Buena');
+        });
+        
+        TestRunner.test('Fuerza de señal - Regular (-70 a -60 dBm)', () => {
+            const result = getSignalStrength(-65);
+            assert.equal(result, 'Regular', 'RSSI -65 debe ser Regular');
+        });
+        
+        TestRunner.test('Fuerza de señal - Débil (<-70 dBm)', () => {
+            const result = getSignalStrength(-85);
+            assert.equal(result, 'Débil', 'RSSI -85 debe ser Débil');
+        });
+        
+        TestRunner.test('Barras de señal - 4 barras (>=-50 dBm)', () => {
+            const result = getSignalBars(-45);
+            assert.equal(result, 4, 'RSSI -45 debe tener 4 barras');
+        });
+        
+        TestRunner.test('Barras de señal - 3 barras (-60 a -50 dBm)', () => {
+            const result = getSignalBars(-55);
+            assert.equal(result, 3, 'RSSI -55 debe tener 3 barras');
+        });
+        
+        TestRunner.test('Barras de señal - 0 barras (<-80 dBm)', () => {
+            const result = getSignalBars(-90);
+            assert.equal(result, 0, 'RSSI -90 debe tener 0 barras');
+        });
+        
+        TestRunner.test('Crear payload WiFi - datos válidos', () => {
+            const result = createWiFiConfigPayload('MiRedWiFi', '12345678');
+            const parsed = JSON.parse(result);
+            
+            assert.equal(parsed.ssid, 'MiRedWiFi', 'SSID debe estar en payload');
+            assert.equal(parsed.password, '12345678', 'Password debe estar en payload');
+        });
+        
+        TestRunner.test('Crear payload WiFi - SSID inválido', () => {
+            assert.throws(() => {
+                createWiFiConfigPayload('', '12345678');
+            }, 'SSID inválido debe lanzar error');
+        });
+        
+        TestRunner.test('Crear payload WiFi - password inválido', () => {
+            assert.throws(() => {
+                createWiFiConfigPayload('MiRedWiFi', '1234');
+            }, 'Password inválido debe lanzar error');
+        });
+        
+        TestRunner.test('Ordenar redes por señal', () => {
+            const networks = [
+                { ssid: 'RedA', rssi: -70 },
+                { ssid: 'RedB', rssi: -45 },
+                { ssid: 'RedC', rssi: -60 }
+            ];
+            
+            const sorted = sortNetworksBySignal(networks);
+            
+            assert.equal(sorted[0].ssid, 'RedB', 'Primera red debe ser la de mejor señal');
+            assert.equal(sorted[1].ssid, 'RedC', 'Segunda red debe tener señal intermedia');
+            assert.equal(sorted[2].ssid, 'RedA', 'Tercera red debe tener peor señal');
+        });
+        
+        TestRunner.test('Filtrar SSIDs duplicados', () => {
+            const networks = [
+                { ssid: 'RedA', rssi: -45 },
+                { ssid: 'RedB', rssi: -60 },
+                { ssid: 'RedA', rssi: -70 },  // Duplicado
+                { ssid: 'RedC', rssi: -55 }
+            ];
+            
+            const filtered = filterDuplicateSSIDs(networks);
+            
+            assert.equal(filtered.length, 3, 'Debe quedar 3 redes únicas');
+            assert.equal(filtered[0].ssid, 'RedA', 'Primera aparición de RedA debe mantenerse');
+            assert.notEqual(filtered[0].rssi, -70, 'Duplicado de RedA debe ser eliminado');
+        });
+        
+        TestRunner.test('Simulación escaneo WiFi - UI rendering', () => {
+            // Crear DOM simulado
+            document.body.innerHTML += '<div id="network-list"></div>';
+            const container = document.getElementById('network-list');
+            
+            const networks = [
+                { ssid: 'RedA', rssi: -45, secure: true },
+                { ssid: 'RedB', rssi: -70, secure: false }
+            ];
+            
+            // Renderizar redes
+            networks.forEach(net => {
+                const div = document.createElement('div');
+                div.className = 'network-item';
+                div.innerHTML = `
+                    <span>${net.ssid}</span>
+                    <span>${getSignalStrength(net.rssi)}</span>
+                    <span>${net.secure ? '🔒' : '📶'}</span>
+                `;
+                container.appendChild(div);
+            });
+            
+            const items = container.querySelectorAll('.network-item');
+            assert.equal(items.length, 2, 'Debe renderizar 2 redes');
+            assert.true(items[0].textContent.includes('RedA'), 'Primera red debe ser RedA');
+            assert.true(items[0].textContent.includes('🔒'), 'RedA debe mostrar candado (segura)');
+            assert.true(items[1].textContent.includes('📶'), 'RedB debe mostrar antena (abierta)');
+        });
+        
+        // ====================================================================
+        // MINI FRAMEWORK DE TESTING (inline)
+        // ====================================================================
+        
+        const TestRunner = {
+            tests: [],
+            results: [],
+            
+            test(name, fn) {
+                this.tests.push({ name, fn });
+            },
+            
+            async run() {
+                this.results = [];
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = '';
+                
+                for (const test of this.tests) {
+                    const result = await this.runTest(test);
+                    this.results.push(result);
+                    this.displayResult(result);
+                }
+                
+                this.displaySummary();
+            },
+            
+            async runTest(test) {
+                const startTime = performance.now();
+                try {
+                    await test.fn();
+                    const endTime = performance.now();
+                    return {
+                        name: test.name,
+                        status: 'PASS',
+                        time: (endTime - startTime).toFixed(2) + 'ms'
+                    };
+                } catch (error) {
+                    const endTime = performance.now();
+                    return {
+                        name: test.name,
+                        status: 'FAIL',
+                        error: error.message,
+                        time: (endTime - startTime).toFixed(2) + 'ms'
+                    };
+                }
+            },
+            
+            displayResult(result) {
+                const resultsDiv = document.getElementById('results');
+                const div = document.createElement('div');
+                div.className = 'test-container';
+                
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `test-result test-${result.status.toLowerCase()}`;
+                
+                if (result.status === 'PASS') {
+                    resultDiv.innerHTML = `✅ ${result.name} - ${result.time}`;
+                } else {
+                    resultDiv.innerHTML = `❌ ${result.name}<br>Error: ${result.error} - ${result.time}`;
+                }
+                
+                div.appendChild(resultDiv);
+                resultsDiv.appendChild(div);
+            },
+            
+            displaySummary() {
+                const summaryDiv = document.getElementById('summary');
+                const passed = this.results.filter(r => r.status === 'PASS').length;
+                const failed = this.results.filter(r => r.status === 'FAIL').length;
+                const total = this.results.length;
+                
+                summaryDiv.innerHTML = `
+                    <div class="test-container">
+                        <div class="summary ${failed === 0 ? 'pass' : 'fail'}">
+                            ${total} Tests | ${passed} Passed | ${failed} Failed
+                        </div>
+                    </div>
+                `;
+            }
+        };
+        
+        const assert = {
+            equal(actual, expected, message = '') {
+                if (actual !== expected) {
+                    throw new Error(`${message} - Expected ${expected}, got ${actual}`);
+                }
+            },
+            
+            notEqual(actual, expected, message = '') {
+                if (actual === expected) {
+                    throw new Error(`${message} - Expected NOT ${expected}, got ${actual}`);
+                }
+            },
+            
+            true(actual, message = '') {
+                if (actual !== true) {
+                    throw new Error(`${message} - Expected true, got ${actual}`);
+                }
+            },
+            
+            false(actual, message = '') {
+                if (actual !== false) {
+                    throw new Error(`${message} - Expected false, got ${actual}`);
+                }
+            },
+            
+            throws(fn, message = '') {
+                try {
+                    fn();
+                    throw new Error(`${message} - Expected function to throw`);
+                } catch (e) {
+                    if (e.message.includes('Expected function to throw')) {
+                        throw e;
+                    }
+                }
+            }
+        };
+        
+        // ====================================================================
+        // FUNCIÓN PRINCIPAL
+        // ====================================================================
+        
+        function runAllTests() {
+            TestRunner.run();
+        }
+        
+        window.addEventListener('load', () => {
+            setTimeout(runAllTests, 500);
+        });
+    </script>
+</body>
+</html>

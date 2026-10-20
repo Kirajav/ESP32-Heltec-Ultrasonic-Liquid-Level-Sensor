@@ -1,0 +1,386 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title id="page-title">Portal de Configuración</title>
+    <link rel="stylesheet" href="/web/captive_portal/style.css">
+</head>
+
+<body>
+    <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+        <symbol id="wifi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12.55a11 11 0 0 1 14 0"></path>
+            <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+            <line x1="12" y1="20" x2="12.01" y2="20"></line>
+        </symbol>
+        <symbol id="eye-open-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+        </symbol>
+        <symbol id="eye-closed-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 12C5 18, 19 18, 22 12"></path>
+            <path d="M6 16l-2 4"></path>
+            <path d="M12 17l0 4"></path>
+            <path d="M18 16l2 4"></path>
+        </symbol>
+    </svg>
+    <div class="page-wrapper">
+        <nav id="side-nav">
+            <div>
+                <div class="nav-brand">
+                    <h1 data-translate="header_title">🌊 Sensor de Nivel</h1>
+                    <p data-translate="header_subtitle">Portal de Configuración</p>
+                </div>
+                <ul>
+                    <li><a href="#wifi-section" class="nav-link active"><svg class="icon nav-icon">
+                                <use xlink:href="#wifi-icon"></use>
+                            </svg> <span data-translate="wifi_config">WiFi</span></a></li>
+                    <li><a href="#sensor-section" class="nav-link"><span class="nav-icon">📏</span> <span
+                                data-translate="sensor_config">Sensor</span></a></li>
+                    <li><a href="#ap-section" class="nav-link"><span class="nav-icon">📡</span> <span
+                                data-translate="ap_config">Punto de Acceso</span></a></li>
+                    <li><a href="#system-section" class="nav-link"><span class="nav-icon">⚙️</span> <span
+                                data-translate="system_config">Sistema</span></a></li>
+                    <li><a href="#mqtt-section" class="nav-link"><span class="nav-icon">🏠</span> <span
+                                data-translate="mqtt_config">MQTT / HA</span></a></li>
+                    <li><a href="#actions-section" id="actions-nav-link" class="nav-link"><span
+                                class="nav-icon">⚡</span> <span data-translate="actions">Acciones</span></a></li>
+                </ul>
+            </div>
+            <div class="actions-menu">
+                <h3 class="actions-menu-title" data-translate="actions">Acciones</h3>
+                <button class="action-button" onclick="saveAllConfig()">
+                    <span class="action-icon">💾</span>
+                    <div class="action-text">
+                        <span class="action-title" data-translate="save_all_title">Guardar Todo</span>
+                        <span class="action-description" data-translate="save_all_desc_short">Guarda todos los
+                            ajustes.</span>
+                    </div>
+                </button>
+                <button class="action-button" onclick="saveAndRestartConfirm()">
+                    <span class="action-icon">🔄</span>
+                    <div class="action-text">
+                        <span class="action-title" data-translate="save_and_restart_title">Aplicar y Conectar</span>
+                        <span class="action-description" data-translate="save_and_restart_desc_short">Guarda y reinicia
+                            con WiFi.</span>
+                    </div>
+                </button>
+                <button class="action-button secondary" onclick="restartDevice()">
+                    <span class="action-icon">🔄</span>
+                    <div class="action-text">
+                        <span class="action-title" data-translate="restart_title">Reiniciar</span>
+                        <span class="action-description" data-translate="restart_desc_short">Reinicia el
+                            dispositivo.</span>
+                    </div>
+                </button>
+                <button class="action-button danger" onclick="factoryResetConfirm()">
+                    <span class="action-icon">🗑️</span>
+                    <div class="action-text">
+                        <span class="action-title" data-translate="factory_reset_title">Reset Fábrica</span>
+                        <span class="action-description" data-translate="factory_reset_desc_short">Borra la
+                            configuración.</span>
+                    </div>
+                </button>
+            </div>
+        </nav>
+
+        <main>
+            <div class="top-controls">
+                <div id="theme-toggle">☀️</div>
+                <div class="language-dropdown" id="language-dropdown">
+                    <div class="language-current" id="current-flag"></div>
+                    <div class="language-menu" id="language-menu">
+                        <!-- Language options will be inserted by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <div id="wifi-section" class="card">
+                <h2><svg class="icon">
+                        <use xlink:href="#wifi-icon"></use>
+                    </svg> <span data-translate="wifi_config">Configuración WiFi</span></h2>
+                <div class="form-group">
+                    <label data-translate="saved_networks">Redes Guardadas</label>
+                    <div id="saved-wifi-list" class="wifi-saved-list"></div>
+                </div>
+                <div class="form-group">
+                    <label data-translate="add_new_network">Agregar Nueva Red</label>
+                    <button class="button" onclick="scanWiFi()" id="scan-button">🔄 <span
+                            data-translate="scan_networks">Escanear Redes</span></button>
+                    <div id="wifi-list" class="wifi-list" style="margin-top:15px;"></div>
+                </div>
+                <div class="form-group">
+                    <label for="wifi-ssid" data-translate="network_name">Nombre de Red (SSID)</label>
+                    <input type="text" id="wifi-ssid" placeholder="Mi_Red_WiFi" required>
+                </div>
+                <div class="form-group">
+                    <label for="wifi-password" data-translate="password">Contraseña</label>
+                    <small class="form-help" data-translate="wifi_password_help">Mínimo 8 caracteres para mayor
+                        seguridad.</small>
+                    <div class="password-container">
+                        <input type="password" id="wifi-password" placeholder="••••••••" minlength="8" maxlength="63">
+                        <button type="button" class="password-toggle" onclick="togglePassword('wifi-password')"><svg
+                                class="icon">
+                                <use xlink:href="#eye-open-icon"></use>
+                            </svg></button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="make-default" checked> <span
+                            data-translate="make_default">Establecer como predeterminada</span></label>
+                </div>
+                <button class="button" onclick="addWiFiNetwork()">➕ <span data-translate="add_network">Agregar
+                        Red</span></button>
+            </div>
+
+            <div id="sensor-section" class="card">
+                <h2><span class="nav-icon">📏</span> <span data-translate="sensor_config">Configuración del
+                        Sensor</span></h2>
+                <div class="form-group">
+                    <label for="sensor-model" data-translate="sensor_model">Modelo del Sensor Ultrasónico</label>
+                    <small class="form-help" data-translate="sensor_model_help">Selecciona tu modelo de sensor para auto-configurar distancias mínima y máxima.</small>
+                    <select id="sensor-model" onchange="onSensorModelChange()">
+                        <option value="0">JSN-SR04T (20-600cm) 💧</option>
+                        <option value="1">HC-SR04 (2-400cm)</option>
+                        <option value="2" selected>AJ-SR04M (20-800cm) 💧</option>
+                        <option value="3">US-100 (2-450cm)</option>
+                        <option value="4">A02YYUW (30-450cm) 💧</option>
+                        <option value="5">DYP-ME007 (30-350cm) 💧</option>
+                        <option value="6" data-translate="custom_sensor">Personalizado</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="tank-height" data-translate="tank_height">Altura del Tanque (cm)</label>
+                    <small class="form-help" data-translate="tank_height_help">Distancia total desde el fondo del tanque
+                        hasta la parte superior.</small>
+                    <input type="number" id="tank-height" value="115" min="50" max="500" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label for="tank-capacity" data-translate="tank_capacity">Capacidad del Tanque (litros)</label>
+                    <small class="form-help" data-translate="tank_capacity_help">Volumen máximo de liquido cuando el tanque
+                        está lleno.</small>
+                    <input type="number" id="tank-capacity" value="1200" min="100" max="10000" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="min-distance" data-translate="min_distance">Distancia Mínima del Sensor (cm)</label>
+                    <small class="form-help" id="min-dist-help" data-translate="min_distance_help">⚙️ Auto-configurado por modelo de sensor.</small>
+                    <input type="number" id="min-distance" value="20" min="1" max="100" step="0.1" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="max-distance" data-translate="max_distance">Distancia Máxima del Sensor (cm)</label>
+                    <small class="form-help" id="max-dist-help" data-translate="max_distance_help">⚙️ Auto-configurado por modelo de sensor.</small>
+                    <input type="number" id="max-distance" value="800" min="50" max="1000" step="0.1" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="container-type" data-translate="container_type">Tipo de Contenedor</label>
+                    <small class="form-help" data-translate="container_type_help">Contenedor sobre el cual se va a
+                        sensar su volumen.</small>
+                    <select id="container-type" onchange="onContainerTypeChange()">
+                        <option value="0" data-translate="tank">Tanque</option>
+                        <option value="1" data-translate="cistern">Cisterna</option>
+                        <option value="2" data-translate="generic">Contenedor Genérico</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="adaptive-interval" checked onchange="onAdaptiveToggle()">
+                        <span data-translate="adaptive_interval">Intervalo de lectura adaptativo</span>
+                    </label>
+                    <small class="form-help" data-translate="adaptive_interval_help">Calcula automáticamente la frecuencia de lectura según el tipo y volumen del contenedor. Contenedores grandes se leen menos seguido.</small>
+                </div>
+                <div id="interval-details" class="form-group" style="background:#f0f4ff;padding:10px;border-radius:8px;margin-top:5px;">
+                    <small id="interval-recommended" style="color:#555;"></small>
+                </div>
+                <div id="manual-intervals" style="display:none;">
+                    <div class="form-group">
+                        <label for="normal-interval" data-translate="normal_interval">Ciclo Normal (segundos)</label>
+                        <small class="form-help" data-translate="normal_interval_help">Cada cuántos segundos se repite el ciclo de sensado. Por defecto: 120s (2 min).</small>
+                        <input type="number" id="normal-interval" value="120" min="15" max="600" step="5">
+                    </div>
+                    <div class="form-group">
+                        <label for="filling-interval" data-translate="filling_interval">Ciclo en Llenado/Vaciado (segundos)</label>
+                        <small class="form-help" data-translate="filling_interval_help">Intervalo reducido cuando se detecta llenado. Por defecto: 30s.</small>
+                        <input type="number" id="filling-interval" value="30" min="5" max="120" step="5">
+                    </div>
+                    <div class="form-group">
+                        <label for="draining-interval" data-translate="draining_interval">Ciclo en Vaciado (segundos)</label>
+                        <small class="form-help" data-translate="draining_interval_help">Intervalo cuando se detecta consumo de agua. Por defecto: 30s.</small>
+                        <input type="number" id="draining-interval" value="30" min="5" max="120" step="5">
+                    </div>
+                </div>
+                <h4 style="margin-top:18px;" data-translate="sigma_filter_title">📊 Filtro Estadístico (σ)</h4>
+                <small class="form-help" data-translate="sigma_filter_desc">Controla cómo se filtran las lecturas del sensor para eliminar ruido y ecos falsos.</small>
+                <div class="form-group">
+                    <label for="sigma-samples" data-translate="sigma_samples">Muestras por lectura (5-30)</label>
+                    <small class="form-help" data-translate="sigma_samples_help">Cantidad de mediciones por ciclo. Más muestras = más precisión pero más lento.</small>
+                    <input type="number" id="sigma-samples" value="20" min="5" max="30" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="sigma-delay-ms" data-translate="sigma_delay_ms">Delay entre muestras (10-500 ms)</label>
+                    <small class="form-help" data-translate="sigma_delay_ms_help">300ms recomendado para evitar reverberación ultrasónica en tanques.</small>
+                    <input type="number" id="sigma-delay-ms" value="300" min="10" max="500" step="10">
+                </div>
+                <div class="form-group">
+                    <label for="sigma-threshold" data-translate="sigma_threshold">Umbral sigma (1.0-3.0)</label>
+                    <small class="form-help" data-translate="sigma_threshold_help">Muestras fuera de μ±kσ se descartan. Menor = más estricto (1.5 recomendado).</small>
+                    <input type="number" id="sigma-threshold" value="1.5" min="1.0" max="3.0" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label for="sigma-min-valid" data-translate="sigma_min_valid">Mínimo de muestras válidas (3-20)</label>
+                    <small class="form-help" data-translate="sigma_min_valid_help">Mínimo de muestras que deben sobrevivir el filtro para aceptar la lectura.</small>
+                    <input type="number" id="sigma-min-valid" value="10" min="3" max="20" step="1">
+                </div>
+                <button class="button" onclick="saveSensorConfig()">💾 <span
+                        data-translate="save_sensor">Guardar</span></button>
+            </div>
+
+            <div id="ap-section" class="card">
+                <h2><span class="nav-icon">📡</span> <span data-translate="ap_config">Configuración del Punto de
+                        Acceso</span></h2>
+                <div class="form-group">
+                    <label for="ap-ssid" data-translate="ap_name">Nombre del AP</label>
+                    <small class="form-help" data-translate="ap_name_help">Nombre que aparecerá en la lista de redes
+                        WiFi.</small>
+                    <input type="text" id="ap-ssid" value="" placeholder="Cargando..." maxlength="31">
+                </div>
+                <div class="form-group">
+                    <label for="ap-password" data-translate="ap_password">Contraseña del AP</label>
+                    <small class="form-help" data-translate="ap_password_help">De 8 a 10 caracteres. Simple y fácil de
+                        recordar.</small>
+                    <div class="password-container">
+                        <input type="password" id="ap-password" value="12345678" minlength="8" maxlength="10"
+                            title="La contraseña debe tener entre 8 y 10 caracteres.">
+                        <button type="button" class="password-toggle" onclick="togglePassword('ap-password')"><svg
+                                class="icon">
+                                <use xlink:href="#eye-open-icon"></use>
+                            </svg></button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="hostname" data-translate="device_name">Nombre del Dispositivo (Hostname)</label>
+                    <small class="form-help" data-translate="device_name_help">Nombre para identificar el dispositivo en
+                        la red local (sin espacios).</small>
+                    <input type="text" id="hostname" value="sensor-nivel-liquido" maxlength="32">
+                </div>
+                <button class="button" onclick="saveAPConfig()">💾 <span
+                        data-translate="save_ap">Guardar</span></button>
+            </div>
+
+            <div id="system-section" class="card">
+                <h2><span class="nav-icon">⚙️</span> <span data-translate="system_config">Configuración del
+                        Sistema</span></h2>
+                <div class="form-group">
+                    <label for="auto-sleep-time" data-translate="auto_sleep_time">Apagado Automático de Pantalla</label>
+                    <small class="form-help" data-translate="auto_sleep_help">Tiempo para que la pantalla se apague y
+                        ahorrar energía.</small>
+                    <select id="auto-sleep-time">
+                        <option value="5">5 segundos</option>
+                        <option value="10">10 segundos</option>
+                        <option value="30" selected>30 segundos</option>
+                        <option value="60">1 minuto</option>
+                        <option value="300">5 minutos</option>
+                    </select>
+                </div>
+                <button class="button" onclick="saveSystemConfig()">💾 <span
+                        data-translate="save_system">Guardar</span></button>
+            </div>
+
+            <div id="mqtt-section" class="card">
+                <h2><span class="nav-icon">🏠</span> <span data-translate="mqtt_config">Configuración MQTT - Home Assistant</span></h2>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="mqtt-enabled">
+                        <span data-translate="mqtt_enable">Habilitar conexión MQTT</span>
+                    </label>
+                    <small class="form-help" data-translate="mqtt_enable_help">Conecta el sensor a tu Home Assistant local vía MQTT.</small>
+                </div>
+                <div class="form-group">
+                    <label for="mqtt-broker-host" data-translate="mqtt_broker_host">Dirección IP del Broker</label>
+                    <small class="form-help" data-translate="mqtt_broker_host_help">IP de tu servidor Mosquitto / Home Assistant.</small>
+                    <input type="text" id="mqtt-broker-host" placeholder="Ej: 192.168.1.100">
+                </div>
+                <div class="form-group">
+                    <label for="mqtt-broker-port" data-translate="mqtt_broker_port">Puerto</label>
+                    <small class="form-help" data-translate="mqtt_broker_port_help">Puerto del broker MQTT (default: 1883).</small>
+                    <input type="number" id="mqtt-broker-port" value="1883" min="1" max="65535">
+                </div>
+                <div class="form-group">
+                    <label for="mqtt-username" data-translate="mqtt_username">Usuario MQTT (opcional)</label>
+                    <small class="form-help" data-translate="mqtt_username_help">Dejar vacío si no requiere autenticación.</small>
+                    <input type="text" id="mqtt-username" placeholder="Ej: homeassistant">
+                </div>
+                <div class="form-group">
+                    <label for="mqtt-password" data-translate="mqtt_password">Contraseña MQTT (opcional)</label>
+                    <div class="password-container">
+                        <input type="password" id="mqtt-password" placeholder="Contraseña del broker">
+                        <button type="button" class="password-toggle" onclick="togglePassword('mqtt-password')"><svg
+                                class="icon">
+                                <use xlink:href="#eye-open-icon"></use>
+                            </svg></button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="mqtt-device-name" data-translate="mqtt_device_name">Nombre del Dispositivo</label>
+                    <small class="form-help" data-translate="mqtt_device_name_help">Nombre visible en Home Assistant.</small>
+                    <input type="text" id="mqtt-device-name" value="Sensor Nivel Agua" placeholder="Nombre del dispositivo">
+                </div>
+                <button class="button" onclick="saveMQTTConfig()">💾 <span
+                        data-translate="save_mqtt">Guardar</span></button>
+            </div>
+
+            <div id="actions-section" class="card">
+                <h2><span class="nav-icon">⚡</span> <span data-translate="actions">Acciones</span></h2>
+                <div class="action-grid">
+                    <div class="action-cell">
+                        <div class="action-icon">💾</div>
+                        <div class="action-title" data-translate="save_all_title">Guardar Todo</div>
+                        <p class="action-description" data-translate="save_all_desc">Guarda todos los cambios de todas
+                            las secciones sin reiniciar.</p>
+                        <button class="button" onclick="saveAllConfig()">Guardar</button>
+                    </div>
+                    <div class="action-cell">
+                        <div class="action-icon">🔄</div>
+                        <div class="action-title" data-translate="save_and_restart_title">Aplicar y Conectar</div>
+                        <p class="action-description" data-translate="save_and_restart_desc">Guarda la configuración y
+                            reinicia el dispositivo para conectar al WiFi.</p>
+                        <button class="button" onclick="saveAndRestartConfirm()">Aplicar</button>
+                    </div>
+                    <div class="action-cell">
+                        <div class="action-icon">🔄</div>
+                        <div class="action-title" data-translate="restart_title">Reiniciar Dispositivo</div>
+                        <p class="action-description" data-translate="restart_desc">Reinicia el dispositivo. Los cambios
+                            no guardados se perderán.</p>
+                        <button class="button button-secondary" onclick="restartDevice()">Reiniciar</button>
+                    </div>
+                    <div class="action-cell">
+                        <div class="action-icon">🗑️</div>
+                        <div class="action-title" data-translate="factory_reset_title">Reset de Fábrica</div>
+                        <p class="action-description" data-translate="factory_reset_desc">Borra toda la configuración y
+                            restaura los valores de fábrica.</p>
+                        <button class="button button-danger" onclick="factoryResetConfirm()">Reset</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+        <footer>
+            Designed by Kira for Liquid Sensor Captive Portal
+        </footer>
+    </div>
+
+    <div id="mobile-actions-overlay"></div>
+    <div id="mobile-actions-sheet">
+        <!-- El contenido de .actions-menu se clonará aquí -->
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="/web/captive_portal/captive-portal.js"></script>
+</body>
+
+</html>

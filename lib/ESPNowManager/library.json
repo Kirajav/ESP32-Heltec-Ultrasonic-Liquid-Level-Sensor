@@ -1,0 +1,7 @@
+{
+    "name": "ESPNowManager",
+    "version": "1.0.0",
+    "description": "ESP-NOW communication manager",
+    "frameworks": "arduino",
+    "platforms": "espressif32"
+}
