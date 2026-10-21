@@ -19,6 +19,9 @@ Verificado en las dos unidades (receptor .82, emisor .83):
 - **Caída de WiFi simulada de 7 min** en modo Automático: a los 2 min se encendió ESP-NOW en el canal
   guardado, el receptor mostró el tinaco remoto en el OLED, y al volver el WiFi las dos apagaron
   ESP-NOW y regresaron al modem sleep
+- **Router desconectado de verdad** (~5 min): a los ~3 min el receptor ya mostraba el tinaco remoto.
+  Al volver el router, las dos se reconectaron solas, sin reiniciarse, y apagaron ESP-NOW.
+  El router reiniciado les asignó otra IP por DHCP: conviene reservarles la IP en el router
 - **Home Assistant** mostró el tinaco remoto
 - **Filtrado:** se descartaron las tramas con otra clave, las repetidas y las de una MAC no emparejada
 
@@ -39,6 +42,8 @@ Verificado en las dos unidades (receptor .82, emisor .83):
 - **Qué hace el receptor con los tinacos remotos**:
   - **OLED**: la línea inferior alterna cada 4 s entre la hora/WiFi y cada tinaco remoto
     (`Azotea 85% 1100L`). El título muestra `[E]`/`[R]` mientras ESP-NOW está encendido
+  - **Fix OLED:** tras una lectura sin eco, al volver una válida solo se repintaban los valores
+    y el texto "SENSOR ERROR / Verificar conexion" quedaba encimado. Ahora se redibuja completo
   - **Home Assistant**: en modo Manual con WiFi, publica cada tinaco remoto como dispositivo
     aparte `<nombre> (ESP-NOW)` (litros, %, distancia), vía `nivel_tinaco/{mac}/espnow/state`.
     Pasa a no disponible si deja de llegar 15 min

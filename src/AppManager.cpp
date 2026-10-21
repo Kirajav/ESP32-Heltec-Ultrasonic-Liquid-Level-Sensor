@@ -2939,7 +2939,10 @@ void AppManager::updateSensorDisplay(bool forceRedraw) {
             }
             
             display_manager.display();
-            
+
+            // Al volver una lectura válida hay que limpiar y redibujar las etiquetas: antes solo
+            // se repintaban los valores (x >= 36) y el texto de error quedaba encimado
+            firstRun = true;
             // Resetear valores para próxima actualización
             lastDistance = -999.0;
             lastLitros = -999.0;
