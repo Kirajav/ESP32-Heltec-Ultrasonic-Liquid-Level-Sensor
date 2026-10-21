@@ -7,6 +7,7 @@ ApplicationConfig::ApplicationConfig() {
 }
 
 bool ApplicationConfig::begin() {
+    if (!_mutex) _mutex = xSemaphoreCreateRecursiveMutex();
     if (!mountFilesystem()) {
         Serial.println("❌ FALLO: No se pudo montar LittleFS");
         return false;
@@ -114,6 +115,13 @@ bool ApplicationConfig::loadFromFile() {
 }
 
 bool ApplicationConfig::saveToFile() {
+    lock();
+    bool ok = saveToFileLocked();
+    unlock();
+    return ok;
+}
+
+bool ApplicationConfig::saveToFileLocked() {
     DynamicJsonDocument doc(JSON_BUFFER_SIZE);
     JsonObject root = doc.to<JsonObject>();
     

@@ -20,7 +20,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-#define FIRMWARE_VERSION "3.4.2"
+#define FIRMWARE_VERSION "3.5.0"
 
 class AppManager {
 public:
@@ -53,12 +53,51 @@ private:
     bool _wifiPowerSave = false;
     void updateWiFiPowerSave(bool force = false);
 
-    // ESP-NOW no recibe con modem sleep: ventana de descubrimiento con la radio
-    // despierta (al arrancar y al pulsar "Escanear") enviando PING cada 5s
-    static constexpr unsigned long ESPNOW_DISCOVERY_MS = 180000; // 3 minutos
-    unsigned long _espNowDiscoveryStart = 0;
-    bool _espNowDiscovering = false;
-    void openEspNowDiscovery();
+    // ===== ESP-NOW (3.5.0): Apagado / Manual / Automático, rol emisor / receptor =====
+    // Con modem sleep la radio puede ENVIAR pero no RECIBIR: solo el receptor activo y la
+    // ventana de emparejamiento la mantienen despierta (0.12 A en vez de 0.059 A)
+    static constexpr unsigned long ESPNOW_PAIRING_MS = 180000;     // Ventana de emparejamiento (3 min)
+    static constexpr unsigned long ESPNOW_FALLBACK_MS = 120000;    // Automático: 2 min sin WiFi → ESP-NOW
+    static constexpr unsigned long ESPNOW_REMOTE_FRESH_MS = 600000; // Tinaco remoto vigente 10 min
+    // Sin WiFi con ESP-NOW activo, el auto-reconnect de Arduino escanea sin parar y salta
+    // de canal: se reemplaza por un intento cada 60 s; el resto del tiempo, canal fijo
+    static constexpr unsigned long WIFI_RETRY_PERIOD_MS = 60000;
+    static constexpr unsigned long WIFI_RETRY_TIMEOUT_MS = 20000;
+    volatile bool _espNowPairingRequested = false;
+    volatile bool _espNowResetRequested = false;
+    unsigned long _wifiLostSince = 0;          // 0 = WiFi conectado
+    bool _wifiPacedReconnect = false;
+    volatile bool _wifiRetryInProgress = false;
+    volatile bool _wifiRetryEnded = false;     // Evento STA_DISCONNECTED durante el intento
+    unsigned long _wifiRetryStart = 0;
+    unsigned long _lastWifiRetry = 0;
+    bool _espNowFallback = false;              // Automático: activo por falta de WiFi
+    // Prueba del respaldo sin tumbar la red: POST /api/esp-now/test?kind=wifioff&s=N
+    // desconecta del router N s y bloquea todos los reintentos
+    volatile uint32_t _wifiSimRequestMs = 0;
+    bool _wifiSimActive = false;
+    unsigned long _wifiSimUntil = 0;
+    // Cambios desde la web: se aplican en loop(), único que modifica la config ESP-NOW
+    struct EspNowRequest {
+        bool setMode = false; uint8_t mode = 0;
+        bool setRole = false; uint8_t role = 0;
+        bool setKey = false; String key;
+        bool setName = false; String name;
+        bool addPeer = false; uint8_t addMac[6] = {0};
+        bool removePeer = false; uint8_t removeMac[6] = {0};
+    };
+    EspNowRequest _espNowReq;
+    SemaphoreHandle_t _espNowReqMutex = nullptr;
+    void queueEspNowRequest(const std::function<void(EspNowRequest&)>& fill);
+    void processEspNowRequests();
+    void applyEspNowConfig();                  // Clave, identidad y unidades → ESPNowManager
+    void updateEspNow();                       // Máquina de estados (cada 1 s)
+    void updateWiFiReconnect(bool wifiUp, bool paced);
+    void finishWifiRetry();
+    void persistEspNowPeer(const uint8_t* mac, const String& name, uint8_t role);
+    void onRemoteSensor(const SensorData& sd);
+    String currentRemoteLine();                // Línea OLED del tinaco remoto ("" = ninguna)
+    String espNowStatusJson();
     
     // Variables para auto-sleep de pantalla
     unsigned long lastDisplayActivity;

@@ -1,4 +1,9 @@
 /*
+ * ⚠️ PROTOCOLO ANTERIOR A 3.5.0: desde 3.5.0 el firmware principal solo acepta tramas
+ *    autenticadas (cabecera 'TK' + secuencia + HMAC-SHA256 con la clave de emparejamiento,
+ *    ver lib/ESPNowManager/ESPNowManager.h) de unidades emparejadas. Este ejemplo envía el
+ *    struct crudo y será descartado ("otro protocolo" en /espnow).
+ *
  * EJEMPLO: ESP32 SLAVE PARA CONECTAR AL SISTEMA PRINCIPAL
  * 
  * Este código va en un ESP32 secundario que actuará como sensor remoto

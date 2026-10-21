@@ -1,4 +1,9 @@
 /*
+ * ⚠️ PROTOCOLO ANTERIOR A 3.5.0: desde 3.5.0 el firmware principal solo acepta tramas
+ *    autenticadas (cabecera 'TK' + secuencia + HMAC-SHA256 con la clave de emparejamiento,
+ *    ver lib/ESPNowManager/ESPNowManager.h) de unidades emparejadas. Este ejemplo envía el
+ *    struct crudo y será descartado ("otro protocolo" en /espnow).
+ *
  * EJEMPLO: ESP32 SLAVE CON CONEXIÓN A INTERNET (NTP)
  * 
  * Este código es para un ESP32 esclavo que:

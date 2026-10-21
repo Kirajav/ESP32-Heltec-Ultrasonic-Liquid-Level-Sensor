@@ -4,6 +4,8 @@
 #include <ArduinoJson.h>
 #include <FS.h>
 #include <LittleFS.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 #include "Domain/NetworkConfig.h"
 #include "Domain/SensorConfig.h"
 #include "Domain/HardwareBoardConfig.h"
@@ -36,17 +38,25 @@ private:
     MQTTConfig mqtt_config;
     
     static const char* CONFIG_FILE;
-    static const size_t JSON_BUFFER_SIZE = 4096;
+    static const size_t JSON_BUFFER_SIZE = 6144;  // 3.5.0: + clave y unidades ESP-NOW
+    
+    SemaphoreHandle_t _mutex = nullptr;
     
     bool mountFilesystem();
     bool loadFromFile();
     bool saveToFile();
+    bool saveToFileLocked();
     
 public:
     ApplicationConfig();
     
     // Initialization
     bool begin();
+    
+    // Guardados y cambios desde varias tareas (loop principal y servidor web): el loop
+    // modifica la config ESP-NOW mientras un handler puede estar serializándola
+    void lock() { if (_mutex) xSemaphoreTakeRecursive(_mutex, portMAX_DELAY); }
+    void unlock() { if (_mutex) xSemaphoreGiveRecursive(_mutex); }
     
     // Global operations
     bool save();

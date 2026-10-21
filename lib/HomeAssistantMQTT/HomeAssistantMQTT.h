@@ -71,7 +71,20 @@ public:
     // Publicar estado de la bomba (ON/OFF) al topic correcto
     bool publishPumpState(bool on);
 
+    // Tinaco remoto recibido por ESP-NOW (unidad receptora): dispositivo aparte en HA,
+    // "<nombre> (ESP-NOW)", que pasa a no disponible si deja de llegar (expire_after)
+    bool publishRemoteSensor(const uint8_t* mac, const char* name,
+                             float litros, float porcentaje, float distancia);
+
 private:
+    // Discovery de tinacos remotos ya publicado en esta conexión
+    struct RemoteDiscovery { uint8_t mac[6]; uint32_t connectionId; };
+    static const uint8_t MAX_REMOTES = 4;
+    RemoteDiscovery _remotes[MAX_REMOTES] = {};
+    uint8_t _remoteCount = 0;
+    volatile uint32_t _connectionId = 0;  // Crece en cada conexión al broker
+    void publishRemoteDiscovery(const String& rmac, const char* name);
+
     Config _config;
     WiFiClient _wifiClient;
     PubSubClient _mqttClient;

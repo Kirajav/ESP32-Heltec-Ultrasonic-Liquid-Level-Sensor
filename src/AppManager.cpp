@@ -49,6 +49,84 @@ const j=await (await fetch('/api/calibrate-bottom',{method:'POST'})).json();aler
 setInterval(poll,1000);poll();
 </script></body></html>)HTML";
 
+// Página /espnow: modo, rol, clave, emparejamiento, unidades y contadores de filtrado.
+// En el firmware (no LittleFS) para no tener que subir el filesystem, que borra /config.json
+static const char ESPNOW_PAGE_HTML[] PROGMEM = R"HTML(<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>ESP-NOW</title><style>
+:root{--bg:#fcfcfb;--fg:#0b0b0b;--mut:#52514e;--acc:#2a78d6;--bd:#e1e0d9}
+@media(prefers-color-scheme:dark){:root{--bg:#1a1a19;--fg:#f0efec;--mut:#c3c2b7;--acc:#3987e5;--bd:#2c2c2a}}
+body{margin:0 auto;padding:16px;font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg);max-width:720px}
+h1{font-size:18px;margin:0 0 4px}h2{font-size:15px;margin:20px 0 6px}.m{color:var(--mut);font-size:13px}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+td{border-bottom:1px solid var(--bd);padding:4px 6px;text-align:left;overflow-wrap:anywhere}
+label{display:block;margin:10px 0 2px;font-size:13px;color:var(--mut)}
+select,input{font-size:15px;padding:6px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--fg);width:100%;max-width:420px;box-sizing:border-box}
+button{font-size:15px;padding:8px 12px;margin:8px 8px 0 0;border-radius:8px;border:1px solid var(--bd);background:var(--acc);color:#fff}
+button.s{background:transparent;color:var(--fg)}button:disabled{opacity:.5}
+td button{font-size:13px;padding:4px 8px;margin:0}
+#msg{margin-top:8px}
+</style></head><body>
+<h1>ESP-NOW</h1><div class="m">Enlace directo entre unidades, sin router. Solo se aceptan unidades emparejadas con la misma clave.</div>
+<h2>Estado</h2><table id="st"></table>
+<h2>Configuración</h2>
+<label for="mode">Modo</label><select id="mode">
+<option value="apagado">Apagado: nunca se enciende</option>
+<option value="automatico">Automático: solo si falta el WiFi 2 min</option>
+<option value="manual">Manual: siempre encendido</option></select>
+<label for="role">Rol</label><select id="role">
+<option value="emisor">Emisor: solo envía su tinaco (la radio puede dormir)</option>
+<option value="receptor">Receptor: recibe y muestra los demás (radio despierta, ~0.12 A)</option></select>
+<label for="name">Nombre de esta unidad</label><input id="name" maxlength="31">
+<label for="key">Clave de emparejamiento (8 a 64 caracteres, la misma en todas)</label>
+<input id="key" type="password" maxlength="64" autocomplete="new-password">
+<button onclick="save()">Guardar</button>
+<div id="msg" class="m"></div>
+<h2>Emparejar</h2>
+<div class="m">Pulsa Emparejar en las dos unidades con menos de 3 min de diferencia. Mientras dura, la radio se queda despierta.</div>
+<button id="pb" onclick="pair()">Emparejar (3 min)</button>
+<h2>Unidades emparejadas</h2><table id="peers"></table>
+<h2>Tinacos remotos</h2><table id="rem"></table>
+<h2>Tramas</h2><table id="cnt"></table>
+<div class="m">Pruebas: la otra unidad debe contarlas como repetida o con clave incorrecta. Un emisor con la radio dormida puede no contestar el ping.</div>
+<button class="s" onclick="test('ping')">Ping</button><button class="s" onclick="test('replay')">Repetir última trama</button><button class="s" onclick="test('badkey')">Trama con otra clave</button>
+<script>
+let loaded=false;
+const $=i=>document.getElementById(i);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
+function rows(t,r){$(t).innerHTML=r.map(x=>'<tr>'+x.map(c=>'<td>'+c+'</td>').join('')+'</tr>').join('')}
+function age(s){return s<0?'nunca':s<90?s+' s':Math.round(s/60)+' min'}
+function why(j){if(j.active)return j.pairing?'emparejando':j.fallback?'respaldo sin WiFi':j.mode;
+if(j.mode==='apagado')return 'modo Apagado';if(!j.key_set)return 'falta la clave';
+if(j.mode==='automatico')return j.peers.length?'con WiFi no hace falta':'sin unidades emparejadas';return ''}
+async function poll(){try{const j=await (await fetch('/api/esp-now/status')).json();
+if(!loaded){$('mode').value=j.mode;$('role').value=j.role;$('name').value=j.name;loaded=true}
+$('key').placeholder=j.key_set?'(guardada; vacío = no cambiar)':'(sin clave ESP-NOW no se enciende)';
+const w=why(j);
+rows('st',[['ESP-NOW',(j.active?'encendido':'apagado')+(w?' ('+w+')':'')],['Rol',j.role],
+['Radio',j.radio_awake?'despierta (recibe)':'modem sleep (ahorro)'],
+['WiFi',j.wifi_connected?'conectado':'sin conexión hace '+age(j.wifi_lost_s)+(j.wifi_retry_paced?', reintento cada 60 s':'')],
+['Canal',j.channel+' (guardado '+j.saved_channel+')'],['MAC',j.mac_address],
+['Emparejamiento',j.pairing?'abierto, quedan '+j.pairing_remaining_s+' s':'cerrado']]);
+$('pb').disabled=j.mode==='apagado'||!j.key_set||j.pairing;
+rows('peers',j.peers.length?j.peers.map(p=>[esc(p.name||'(sin nombre)'),p.mac,p.role,'visto '+age(p.last_seen_s),
+'<button class="s" onclick="del(\''+p.mac+'\')">Quitar</button>']):[['Ninguna']]);
+rows('rem',j.remote.length?j.remote.map(r=>[esc(r.name),r.valid?r.percent+' %':'sin eco',r.valid?r.liters+' L':'',
+r.valid?r.distance+' cm':'','hace '+age(r.age_s)]):[['Sin lecturas']]);
+const s=j.stats;rows('cnt',[['Aceptadas',s.rx_ok],['Clave incorrecta',s.rx_bad_auth],['Repetidas',s.rx_replay],
+['MAC no emparejada',s.rx_unknown],['Otro protocolo',s.rx_malformed],['Enviadas OK / fallidas',s.tx_ok+' / '+s.tx_fail]])}
+catch(e){rows('st',[['Sin conexión con el ESP32','']])}}
+async function post(u,b){const o={method:'POST'};if(b){o.headers={'Content-Type':'application/json'};o.body=JSON.stringify(b)}
+const r=await fetch(u,o);let j={};try{j=await r.json()}catch(e){}
+$('msg').textContent=j.message||(r.ok?'Listo':'Error '+r.status);return r.ok}
+async function save(){const b={mode:$('mode').value,role:$('role').value};if($('name').value)b.sensorName=$('name').value;
+const k=$('key').value;if(k){if(k.length<8){$('msg').textContent='La clave debe tener al menos 8 caracteres';return}b.key=k}
+if(await post('/api/esp-now/configure',b))$('key').value='';setTimeout(poll,1500)}
+async function pair(){await post('/api/esp-now/pair');setTimeout(poll,1500)}
+async function del(m){if(!confirm('¿Quitar '+m+'? Habrá que emparejarla de nuevo.'))return;await post('/api/esp-now/disconnect',{mac:m});setTimeout(poll,1500)}
+async function test(k){await post('/api/esp-now/test?kind='+k);setTimeout(poll,1500)}
+setInterval(poll,2000);poll();
+</script></body></html>)HTML";
+
 AppManager::AppManager() {
     Serial.println("AppManager iniciado");
     wifi_connected = false;
@@ -191,41 +269,29 @@ void AppManager::initialize() {
     ntpSync->begin();
     esp_task_wdt_reset(); // Reset watchdog
     
-    // ESP-NOW con configuración dinámica
-    Serial.println("🔗 Configurando ESP-NOW...");
-    
-    // Inicializar configuración ESP-NOW con identidad automática
+    // ESP-NOW (3.5.0): ya no se inicia siempre. updateEspNow() lo enciende según el modo
+    // (Apagado / Manual / Automático), con clave de emparejamiento y unidades emparejadas
     config_manager.getESPNowConfig().initialize();
-    
-    // Configurar rol según configuración guardada
     espNowManager = ESPNowManager::getInstance();
-    if (config_manager.getESPNowConfig().isMaster()) {
-        espNowManager->setMasterMode(true);
-        Serial.printf("👑 Configurado como MASTER - ID: %d, Nombre: %s\n", 
-                      config_manager.getESPNowConfig().getSensorID(),
-                      config_manager.getESPNowConfig().getSensorName().c_str());
-    } else if (config_manager.getESPNowConfig().isSlave()) {
-        espNowManager->setMasterMode(false);
-        Serial.printf("📡 Configurado como SLAVE - ID: %d, Nombre: %s\n", 
-                      config_manager.getESPNowConfig().getSensorID(),
-                      config_manager.getESPNowConfig().getSensorName().c_str());
+    _espNowReqMutex = xSemaphoreCreateMutex();
+    espNowManager->onPeerUpdated = [this](const uint8_t* mac, const String& name, uint8_t role) {
+        persistEspNowPeer(mac, name, role);
+    };
+    espNowManager->onSensorDataCallback = [this](const SensorData& sd) { onRemoteSensor(sd); };
+    applyEspNowConfig();
+    {
+        const ESPNowConfig& ec = config_manager.getESPNowConfig();
+        Serial.printf("🔗 ESP-NOW: modo %s, rol %s, clave %s, %u unidades, canal guardado %u\n",
+                      ESPNowConfig::modeToString(ec.getMode()), ESPNowConfig::roleToString(ec.getRole()),
+                      ec.hasPairingKey() ? "sí" : "no", (unsigned)ec.getPeers().size(), ec.getLastChannel());
     }
-    
-    if (espNowManager->initESPNow()) {
-        Serial.println("✅ ESP-NOW inicializado");
-        
-        // Verificar coexistencia WiFi + ESP-NOW
-        if (WiFi.status() == WL_CONNECTED) {
-            Serial.println("🎯 ¡COEXISTENCIA ACTIVA! WiFi + ESP-NOW funcionando simultáneamente");
-            Serial.printf("   📶 WiFi: %s (%s)\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
-            Serial.printf("   🔗 ESP-NOW: %s (Canal %d)\n", WiFi.macAddress().c_str(), WiFi.channel());
-            Serial.printf("   🆔 Identidad: %s (ID: %d)\n", 
-                          config_manager.getESPNowConfig().getSensorName().c_str(),
-                          config_manager.getESPNowConfig().getSensorID());
-            Serial.println("   ✨ Dispositivo listo para comunicación híbrida");
+    // Intento de reconexión espaciado: saber cuándo terminó (sin AP, clave mala...)
+    WiFi.onEvent([this](arduino_event_id_t event, arduino_event_info_t info) {
+        if (_wifiRetryInProgress && info.wifi_sta_disconnected.reason != WIFI_REASON_ASSOC_LEAVE) {
+            _wifiRetryEnded = true;
         }
-        openEspNowDiscovery();  // Buscar otras unidades durante 3 min tras arrancar
-    }
+    }, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+    if (!portal_active) updateEspNow();
     
     // Home Assistant MQTT (local broker - Auto-Discovery)
     haMqtt = new HomeAssistantMQTT();
@@ -414,7 +480,7 @@ void AppManager::startNormalMode() {
     WiFi.mode(WIFI_STA);
     Serial.println("📡 SoftAP desactivado - Solo modo estación WiFi");
     // Modem sleep activo: la radio dormía nunca (~100mA continuos = calor).
-    // Solo se desactiva si hay peers ESP-NOW (ver updateWiFiPowerSave)
+    // Solo se desactiva para recibir por ESP-NOW (ver updateWiFiPowerSave)
     updateWiFiPowerSave(true);
     
     // Iniciar mDNS para resolución por nombre (http://hostname.local)
@@ -446,25 +512,326 @@ void AppManager::startNormalMode() {
 
 // Modem sleep (WIFI_PS_MIN_MODEM): la radio duerme entre beacons del router.
 // Baja el consumo de ~100mA a ~25-40mA a cambio de ~100-300ms de latencia de ping.
-// Con peers ESP-NOW o durante el descubrimiento se desactiva, porque en modem
-// sleep se pierden los paquetes ESP-NOW recibidos.
+// ESP-NOW puede enviar en modem sleep pero no recibir: solo se desactiva en el
+// receptor con ESP-NOW activo y durante la ventana de emparejamiento.
 void AppManager::updateWiFiPowerSave(bool force) {
-    bool espNowActive = espNowManager && espNowManager->isInit() &&
-                        (espNowManager->hasPeers() || _espNowDiscovering);
-    bool wantPowerSave = !espNowActive;
+    bool mustReceive = espNowManager && espNowManager->isInit() &&
+                       (espNowManager->isPairing() || _espNowPairingRequested ||
+                        config_manager.getESPNowConfig().isReceptor());
+    bool wantPowerSave = !mustReceive;
     if (!force && wantPowerSave == _wifiPowerSave) return;
     WiFi.setSleep(wantPowerSave);
     _wifiPowerSave = wantPowerSave;
-    Serial.printf("📶 WiFi modem sleep: %s\n", wantPowerSave ? "ON (ahorro)" : "OFF (ESP-NOW activo)");
+    Serial.printf("📶 WiFi modem sleep: %s\n", wantPowerSave ? "ON (ahorro)" : "OFF (ESP-NOW recibiendo)");
 }
 
-void AppManager::openEspNowDiscovery() {
-    if (!espNowManager || !espNowManager->isInit() || portal_active) return;
-    _espNowDiscovering = true;
-    _espNowDiscoveryStart = millis();
+// ===== ESP-NOW: configuración y máquina de estados =====
+
+void AppManager::queueEspNowRequest(const std::function<void(EspNowRequest&)>& fill) {
+    if (!_espNowReqMutex) return;
+    xSemaphoreTake(_espNowReqMutex, portMAX_DELAY);
+    fill(_espNowReq);
+    xSemaphoreGive(_espNowReqMutex);
+}
+
+// Aplica en el loop los cambios pedidos por la web (modo, rol, clave, nombre, unidades)
+void AppManager::processEspNowRequests() {
+    if (!_espNowReqMutex) return;
+    EspNowRequest req;
+    xSemaphoreTake(_espNowReqMutex, portMAX_DELAY);
+    req = _espNowReq;
+    _espNowReq = EspNowRequest();
+    xSemaphoreGive(_espNowReqMutex);
+    if (!req.setMode && !req.setRole && !req.setKey && !req.setName && !req.addPeer && !req.removePeer) return;
+
+    ESPNowConfig& cfg = config_manager.getESPNowConfig();
+    config_manager.lock();
+    if (req.setMode) cfg.setMode((EspNowMode)req.mode);
+    if (req.setRole) cfg.setRole((EspNowRole)req.role);
+    if (req.setKey) cfg.setPairingKey(req.key);
+    if (req.setName) cfg.setCustomSensorName(req.name);
+    if (req.addPeer) {
+        bool exists = false;
+        for (const auto& p : cfg.getPeers()) exists |= memcmp(p.mac, req.addMac, 6) == 0;
+        bool changed;
+        if (!exists) cfg.upsertPeer(req.addMac, "", ESPNOW_ROLE_EMISOR, changed);  // Nombre y rol llegan en el HELLO
+    }
+    if (req.removePeer) {
+        cfg.removePeer(req.removeMac);
+        espNowManager->removePeer(req.removeMac);
+    }
+    config_manager.save();
+    config_manager.unlock();
+    applyEspNowConfig();
+    Serial.printf("⚙️ ESP-NOW: modo %s, rol %s, clave %s, %u unidades\n",
+                  ESPNowConfig::modeToString(cfg.getMode()), ESPNowConfig::roleToString(cfg.getRole()),
+                  cfg.hasPairingKey() ? "sí" : "no", (unsigned)cfg.getPeers().size());
+    if (!display_manager.isDisplaySleeping() && !_installationMode) updateSensorDisplay(true);
+}
+
+void AppManager::applyEspNowConfig() {
+    if (!espNowManager) return;
+    const ESPNowConfig& cfg = config_manager.getESPNowConfig();
+    espNowManager->setKey(cfg.hasPairingKey() ? cfg.getPairingKey() : String());
+    espNowManager->setIdentity(cfg.getSensorID(), cfg.getSensorName(), (uint8_t)cfg.getRole());
+    std::vector<ESPNowManager::PeerInfo> list;
+    for (const auto& p : cfg.getPeers()) {
+        ESPNowManager::PeerInfo pi;
+        memcpy(pi.mac, p.mac, 6);
+        pi.name = p.name;
+        pi.role = (uint8_t)p.role;
+        list.push_back(pi);
+    }
+    espNowManager->setPairedPeers(list);
+}
+
+// Unidad nueva o con nombre/rol distinto (llega por HELLO con clave válida)
+void AppManager::persistEspNowPeer(const uint8_t* mac, const String& name, uint8_t role) {
+    ESPNowConfig& cfg = config_manager.getESPNowConfig();
+    config_manager.lock();
+    bool changed = false;
+    bool ok = cfg.upsertPeer(mac, name, (EspNowRole)role, changed);
+    if (ok && changed) config_manager.save();
+    config_manager.unlock();
+    if (!ok) Serial.println("⚠️ ESP-NOW: no caben más unidades emparejadas");
+}
+
+static void setRadioChannel(uint8_t ch) {
+    if (ch < 1 || ch > 13) return;
+    uint8_t cur;
+    wifi_second_chan_t sec;
+    if (esp_wifi_get_channel(&cur, &sec) == ESP_OK && cur == ch) return;
+    if (esp_wifi_set_channel(ch, WIFI_SECOND_CHAN_NONE) == ESP_OK) {
+        Serial.printf("📻 Radio en canal %u (último del router)\n", ch);
+    }
+}
+
+void AppManager::finishWifiRetry() {
+    _wifiRetryInProgress = false;
+    _wifiRetryEnded = false;
+    _lastWifiRetry = millis();
+    if (WiFi.status() == WL_CONNECTED) return;
+    WiFi.disconnect(false, false);  // Detiene el intento; conserva SSID/clave
+    setRadioChannel(config_manager.getESPNowConfig().getLastChannel());
+}
+
+// paced = ESP-NOW activo y sin WiFi desde hace ESPNOW_FALLBACK_MS
+void AppManager::updateWiFiReconnect(bool wifiUp, bool paced) {
+    // Caída simulada: sin reintentos hasta que venza; luego se reconecta como si volviera el router
+    if (_wifiSimActive && (long)(millis() - _wifiSimUntil) >= 0) {
+        _wifiSimActive = false;
+        Serial.println("🧪 Fin de la caída de WiFi simulada: reconectando");
+        if (_wifiPacedReconnect) {
+            _lastWifiRetry = millis() - WIFI_RETRY_PERIOD_MS;  // Intento inmediato
+        } else {
+            WiFi.setAutoReconnect(true);
+            WiFi.begin();
+        }
+    }
+    if (wifiUp) {
+        if (_wifiPacedReconnect) {
+            _wifiPacedReconnect = false;
+            _wifiRetryInProgress = false;
+            WiFi.setAutoReconnect(true);
+            Serial.println("📶 WiFi recuperado: reconexión automática normal");
+        }
+        return;
+    }
+    if (!paced) {
+        if (_wifiPacedReconnect) {
+            // Ya no hace falta canal fijo (p. ej. modo Apagado): volver al auto-reconnect continuo
+            _wifiPacedReconnect = false;
+            _wifiRetryInProgress = false;
+            if (!_wifiSimActive) {
+                WiFi.setAutoReconnect(true);
+                WiFi.begin();
+            }
+        }
+        return;
+    }
+    uint8_t ch = config_manager.getESPNowConfig().getLastChannel();
+    if (!_wifiPacedReconnect) {
+        _wifiPacedReconnect = true;
+        WiFi.setAutoReconnect(false);
+        WiFi.disconnect(false, false);
+        _wifiRetryInProgress = false;
+        _lastWifiRetry = millis();
+        setRadioChannel(ch);
+        Serial.printf("📶 Sin WiFi: ESP-NOW en canal %u, reintento del router cada %lus\n",
+                      ch, WIFI_RETRY_PERIOD_MS / 1000);
+        return;
+    }
+    if (_wifiRetryInProgress) return;  // finishWifiRetry() lo cierra (evento o timeout)
+    if (!_wifiSimActive && millis() - _lastWifiRetry >= WIFI_RETRY_PERIOD_MS) {
+        // El escaneo rápido empieza por el último canal: si el router volvió ahí, conecta enseguida
+        wifi_config_t conf;
+        if (esp_wifi_get_config(WIFI_IF_STA, &conf) == ESP_OK) {
+            conf.sta.channel = ch;
+            esp_wifi_set_config(WIFI_IF_STA, &conf);
+        }
+        _wifiRetryEnded = false;
+        _wifiRetryInProgress = true;
+        _wifiRetryStart = millis();
+        if (esp_wifi_connect() != ESP_OK) finishWifiRetry();
+    } else {
+        setRadioChannel(ch);  // Por si un escaneo previo dejó la radio en otro canal
+    }
+}
+
+// Junta el cuerpo de un POST: el navegador puede mandarlo en varios segmentos TCP y el
+// handler de cuerpo se llama una vez por segmento (parsear solo el primero daba "JSON invalido").
+// 1 = completo (texto en request->_tempObject, que la librería libera con free), 0 = faltan trozos, -1 = error
+static int collectBody(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
+    if (total == 0 || total > 1024) return -1;
+    if (index == 0) {
+        free(request->_tempObject);
+        request->_tempObject = malloc(total + 1);
+    }
+    char* buf = (char*)request->_tempObject;
+    if (!buf || index + len > total) return -1;
+    memcpy(buf + index, data, len);
+    if (index + len < total) return 0;
+    buf[total] = '\0';
+    return 1;
+}
+
+static bool espNowModeUsable(const ESPNowConfig& cfg) {
+    return cfg.getMode() != ESPNOW_MODE_OFF && cfg.hasPairingKey();
+}
+
+void AppManager::updateEspNow() {
+    if (!espNowManager) return;
+    processEspNowRequests();
+    if (_wifiSimRequestMs) {
+        _wifiSimUntil = millis() + _wifiSimRequestMs;
+        _wifiSimRequestMs = 0;
+        _wifiSimActive = true;
+        WiFi.setAutoReconnect(false);
+        WiFi.disconnect(false, false);
+        Serial.printf("🧪 Caída de WiFi simulada: %lus sin router\n", (_wifiSimUntil - millis()) / 1000);
+    }
+    ESPNowConfig& cfg = config_manager.getESPNowConfig();
+    bool wifiUp = WiFi.status() == WL_CONNECTED;
+
+    if (wifiUp) {
+        if (_wifiLostSince) {
+            Serial.printf("📶 WiFi de vuelta tras %lus\n", (millis() - _wifiLostSince) / 1000);
+            _wifiLostSince = 0;
+        }
+        // Canal del router para el respaldo sin WiFi (se guarda solo si cambia)
+        uint8_t ch = WiFi.channel();
+        if (ch >= 1 && ch <= 13 && ch != cfg.getLastChannel()) {
+            config_manager.lock();
+            cfg.setLastChannel(ch);
+            config_manager.save();
+            config_manager.unlock();
+            Serial.printf("📻 Canal del router guardado: %u\n", ch);
+        }
+    } else if (_wifiLostSince == 0) {
+        _wifiLostSince = millis() | 1;
+        Serial.println("📶 WiFi perdido");
+    }
+    bool lostLong = !wifiUp && millis() - _wifiLostSince >= ESPNOW_FALLBACK_MS;
+
+    if (_espNowResetRequested) {
+        _espNowResetRequested = false;
+        espNowManager->deinitESPNow();  // Se vuelve a encender abajo si corresponde
+    }
+
+    bool usable = espNowModeUsable(cfg);
+    if (_espNowPairingRequested && !usable) {
+        _espNowPairingRequested = false;
+        Serial.println("⚠️ Emparejamiento ignorado: modo Apagado o sin clave");
+    }
+    bool want = false;
+    if (usable) {
+        if (cfg.getMode() == ESPNOW_MODE_MANUAL) want = true;
+        else want = cfg.hasPeers() && lostLong;  // Automático
+        if (_espNowPairingRequested || espNowManager->isPairing()) want = true;
+    }
+    _espNowFallback = cfg.getMode() == ESPNOW_MODE_AUTO && want && lostLong;
+
+    updateWiFiReconnect(wifiUp, want && lostLong);
+
+    bool wasInit = espNowManager->isInit();
+    if (want && !wasInit) {
+        espNowManager->initESPNow();
+    } else if (!want && wasInit) {
+        espNowManager->deinitESPNow();
+    }
+    if (_espNowPairingRequested && espNowManager->isInit()) {
+        _espNowPairingRequested = false;
+        espNowManager->startPairing(ESPNOW_PAIRING_MS);
+    }
+    if (wasInit != espNowManager->isInit()) {
+        Serial.printf("🔗 ESP-NOW %s (%s)\n", espNowManager->isInit() ? "ENCENDIDO" : "APAGADO",
+                      _espNowFallback ? "respaldo sin WiFi" : ESPNowConfig::modeToString(cfg.getMode()));
+        if (!display_manager.isDisplaySleeping() && !_installationMode) updateSensorDisplay(true);
+    }
     updateWiFiPowerSave();
-    espNowManager->broadcastPing();
-    Serial.println("🔍 ESP-NOW: ventana de descubrimiento abierta (3 min)");
+}
+
+// Lectura de una unidad emparejada (desde ESPNowManager::loop, contexto del loop principal)
+void AppManager::onRemoteSensor(const SensorData& sd) {
+    if (!config_manager.getESPNowConfig().isReceptor()) return;
+    Serial.printf("📥 ESP-NOW %s: %.1f%% %.1fL %.1fcm%s\n", sd.sensorName, sd.liquidLevel, sd.liters,
+                  sd.distance, (sd.flags & ESPNOW_FLAG_VALID) ? "" : " (sin eco)");
+    // Modo Manual con WiFi: el receptor reenvía el tinaco remoto a Home Assistant
+    if (haMqtt && haMqtt->isConnected() && (sd.flags & ESPNOW_FLAG_VALID)) {
+        haMqtt->publishRemoteSensor(sd.mac, sd.sensorName, sd.liters, sd.liquidLevel, sd.distance);
+    }
+}
+
+// Receptor: la línea inferior del OLED alterna cada 4 s entre el estado local y cada tinaco remoto
+String AppManager::currentRemoteLine() {
+    if (!espNowManager || !espNowManager->isInit() || !config_manager.getESPNowConfig().isReceptor()) return "";
+    std::vector<SensorData> fresh;
+    for (const auto& s : espNowManager->getConnectedSensors()) {
+        if (millis() - s.timestamp < ESPNOW_REMOTE_FRESH_MS) fresh.push_back(s);
+    }
+    if (fresh.empty()) return "";
+    size_t slot = (millis() / 4000) % (fresh.size() + 1);
+    if (slot == 0) return "";
+    const SensorData& s = fresh[slot - 1];
+    String name = String(s.sensorName).substring(0, 10);
+    if (!(s.flags & ESPNOW_FLAG_VALID)) return name + ": sin eco";
+    return name + " " + String((int)s.liquidLevel) + "% " + String(s.liters, 0) + "L";
+}
+
+String AppManager::espNowStatusJson() {
+    const ESPNowConfig& cfg = config_manager.getESPNowConfig();
+    DynamicJsonDocument doc(3072);
+    bool init = espNowManager && espNowManager->isInit();
+    doc["esp_now_enabled"] = init;
+    doc["active"] = init;
+    doc["mode"] = ESPNowConfig::modeToString(cfg.getMode());
+    doc["role"] = ESPNowConfig::roleToString(cfg.getRole());
+    doc["name"] = espNowManager ? espNowManager->getLocalName() : String("");
+    doc["key_set"] = cfg.hasPairingKey();   // La clave nunca se devuelve
+    doc["fallback"] = _espNowFallback;
+    doc["radio_awake"] = !_wifiPowerSave;
+    doc["pairing"] = espNowManager && (espNowManager->isPairing() || _espNowPairingRequested);
+    doc["pairing_remaining_s"] = espNowManager ? espNowManager->pairingRemainingMs() / 1000 : 0;
+    doc["mac_address"] = WiFi.macAddress();
+    doc["channel"] = WiFi.channel();
+    doc["saved_channel"] = cfg.getLastChannel();
+    doc["wifi_connected"] = WiFi.status() == WL_CONNECTED;
+    doc["wifi_lost_s"] = _wifiLostSince ? (millis() - _wifiLostSince) / 1000 : 0;
+    doc["wifi_retry_paced"] = _wifiPacedReconnect;
+    if (_wifiSimActive) doc["wifi_sim_s"] = (long)(_wifiSimUntil - millis()) / 1000;
+    doc["wifi_mode"] = WiFi.getMode() == WIFI_AP_STA ? "AP_STA" : "STA";
+    doc["connected_peers"] = espNowManager ? espNowManager->getConnectedSensorCount() : 0;
+    doc["packets_sent"] = espNowManager ? espNowManager->getPacketsSent() : 0;
+    doc["packets_received"] = espNowManager ? espNowManager->getPacketsReceived() : 0;
+    doc["last_activity"] = millis();
+    if (espNowManager) {
+        espNowManager->peersToJson(doc.createNestedArray("peers"));
+        espNowManager->sensorsToJson(doc.createNestedArray("remote"));
+        espNowManager->statsToJson(doc.createNestedObject("stats"));
+    }
+    String json;
+    serializeJson(doc, json);
+    return json;
 }
 
 // Entrar/salir del modo instalación (dashboard, WebSerial o /instalacion)
@@ -638,8 +1005,13 @@ void AppManager::setupSmartRoutes() {
     server.on("/espnow_dashboard", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(LittleFS, "/web/espnow_dashboard/index.html", "text/html");
     });
+    // Configuración ESP-NOW (modo, rol, clave, emparejamiento): embebida en el firmware.
+    // La página LittleFS anterior no conocía la clave ni los modos
+    server.on("/espnow", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(200, "text/html", ESPNOW_PAGE_HTML);
+    });
     server.on("/espnow-manager", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(LittleFS, "/web/esp_now/index.html", "text/html");
+        request->redirect("/espnow");
     });
     // Enlaces de regreso usados por las páginas ESP-NOW
     server.on("/dashboard", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -667,7 +1039,9 @@ void AppManager::setupSmartRoutes() {
                    ",\"temp_c\":" + String(temperatureRead(), 1) +
                    ",\"cpu_mhz\":" + String(getCpuFrequencyMhz()) +
                    ",\"wifi_sleep\":" + String(_wifiPowerSave ? "true" : "false") +
-                   ",\"espnow_discovery\":" + String(_espNowDiscovering ? "true" : "false") +
+                   ",\"espnow_mode\":\"" + String(ESPNowConfig::modeToString(config_manager.getESPNowConfig().getMode())) + "\"" +
+                   ",\"espnow_active\":" + String((espNowManager && espNowManager->isInit()) ? "true" : "false") +
+                   ",\"espnow_pairing\":" + String((espNowManager && espNowManager->isPairing()) ? "true" : "false") +
                    ",\"espnow_peers\":" + String((espNowManager && espNowManager->hasPeers()) ? "true" : "false") +
                    ",\"rssi\":" + String(WiFi.RSSI()) +
                    ",\"uptime_s\":" + String(millis() / 1000) +
@@ -1464,69 +1838,52 @@ String json = "{\"installationMode\":" + String(_installationMode ? "true" : "fa
         ESP.restart();
     });
     
-    // ===== API DASHBOARD UNIFICADO =====
+    // ===== API DASHBOARD UNIFICADO (tinacos remotos por ESP-NOW) =====
     server.on("/multi-sensor-data", HTTP_GET, [this](AsyncWebServerRequest *request) {
-        String json = "{";
-        json += "\"timestamp\":" + String(millis()) + ",";
-        json += "\"network\":{";
-        json += "\"status\":\"" + String(espNowManager && espNowManager->isInit() ? "active" : "inactive") + "\",";
-        json += "\"master_device\":\"" + WiFi.macAddress() + "\",";
-        json += "\"connected_count\":" + String(espNowManager ? espNowManager->getConnectedSensorCount() : 0);
-        json += "},";
-        json += "\"slaves\":[";
-        
-        if (espNowManager && espNowManager->isInit()) {
-            auto sensors = espNowManager->getConnectedSensors();
-            for (size_t i = 0; i < sensors.size(); i++) {
-                if (i > 0) json += ",";
-                auto& s = sensors[i];
+        DynamicJsonDocument doc(2048);
+        doc["timestamp"] = millis();
+        JsonObject net = doc.createNestedObject("network");
+        net["status"] = (espNowManager && espNowManager->isInit()) ? "active" : "inactive";
+        net["master_device"] = WiFi.macAddress();
+        net["connected_count"] = espNowManager ? espNowManager->getConnectedSensorCount() : 0;
+        JsonArray slaves = doc.createNestedArray("slaves");
+        if (espNowManager) {
+            for (const auto& s : espNowManager->getConnectedSensors()) {
                 uint32_t age = millis() - s.timestamp;
-                String status = age < 120000 ? "online" : (age < 300000 ? "warning" : "offline");
-                json += "{";
-                json += "\"id\":\"SLAVE_" + String(s.sensorId) + "\",";
-                json += "\"name\":\"" + String(s.sensorName) + "\",";
-                json += "\"percentage\":" + String(s.liquidLevel, 1) + ",";
-                json += "\"liquidLevel\":\"" + String(s.liters, 1) + "\",";
-                json += "\"distance\":\"" + String(s.distance, 1) + "\",";
-                json += "\"rssi\":" + String(-(int)s.signalStrength) + ",";
-                json += "\"lastSeen\":\"" + String(s.timestamp) + "\",";
-                json += "\"mac\":\"" + espNowManager->getMacForSensorId(s.sensorId) + "\",";
-                json += "\"firmware\":\"ESP-NOW Slave\",";
-                json += "\"status\":\"" + status + "\"";
-                json += "}";
+                JsonObject o = slaves.createNestedObject();
+                o["id"] = "SLAVE_" + String(s.sensorId);
+                o["name"] = s.sensorName;
+                o["percentage"] = serialized(String(s.liquidLevel, 1));
+                o["liquidLevel"] = String(s.liters, 1);
+                o["distance"] = String(s.distance, 1);
+                o["rssi"] = s.rssi;
+                o["lastSeen"] = String(s.timestamp);
+                o["mac"] = espNowManager->macToString(s.mac);
+                o["firmware"] = "ESP-NOW";
+                o["status"] = age < 300000 ? "online" : (age < ESPNOW_REMOTE_FRESH_MS ? "warning" : "offline");
             }
         }
-        
-        json += "]}";
+        String json;
+        serializeJson(doc, json);
         AsyncWebServerResponse *response = request->beginResponse(200, "application/json", json);
         response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
         response->addHeader("Access-Control-Allow-Origin", "*");
         request->send(response);
     });
-    
+
+    // Estado completo: modo, rol, canal, unidades, tinacos remotos y contadores de filtrado.
+    // Nunca incluye la clave (solo key_set)
     server.on("/api/esp-now/status", HTTP_GET, [this](AsyncWebServerRequest *request) {
-        String json = "{";
-        json += "\"esp_now_enabled\":" + String(espNowManager && espNowManager->isInit() ? "true" : "false") + ",";
-        json += "\"role\":\"" + String(config_manager.getESPNowConfig().isMaster() ? "master" : "slave") + "\",";
-        json += "\"mac_address\":\"" + WiFi.macAddress() + "\",";
-        json += "\"channel\":" + String(WiFi.channel()) + ",";
-        json += "\"wifi_mode\":\"" + String(WiFi.getMode() == WIFI_AP_STA ? "AP_STA" : "STA") + "\",";
-        json += "\"connected_peers\":" + String(espNowManager ? espNowManager->getConnectedSensorCount() : 0) + ",";
-        json += "\"packets_sent\":" + String(espNowManager ? espNowManager->getPacketsSent() : 0) + ",";
-        json += "\"packets_received\":" + String(espNowManager ? espNowManager->getPacketsReceived() : 0) + ",";
-        json += "\"last_activity\":" + String(millis());
-        json += "}";
-        
-        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", json);
+        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", espNowStatusJson());
         response->addHeader("Cache-Control", "no-cache");
         response->addHeader("Access-Control-Allow-Origin", "*");
         request->send(response);
     });
-    
+
     // ===== ESP-NOW MANAGEMENT ENDPOINTS =====
     server.on("/api/esp-now/info", HTTP_GET, [this](AsyncWebServerRequest *request) {
         Serial.println("🔍 Procesando solicitud de información ESP-NOW");
-        
+
         String jsonResponse = "{";
         jsonResponse += "\"status\":\"active\",";
         jsonResponse += "\"version\":\"" + String(FIRMWARE_VERSION) + "\",";
@@ -1535,165 +1892,159 @@ String json = "{\"installationMode\":" + String(_installationMode ? "true" : "fa
         jsonResponse += "\"uptime\":" + String(millis()) + ",";
         jsonResponse += "\"free_heap\":" + String(ESP.getFreeHeap());
         jsonResponse += "}";
-        
+
         AsyncWebServerResponse *response = request->beginResponse(200, "application/json", jsonResponse);
         response->addHeader("Access-Control-Allow-Origin", "*");
         request->send(response);
     });
-    
-    server.on("/api/esp-now/scan", HTTP_POST, [this](AsyncWebServerRequest *request) {
-        Serial.println("🔍 Iniciando escaneo de dispositivos ESP-NOW");
-        if (!espNowManager || !espNowManager->isInit()) {
-            request->send(503, "application/json", "{\"status\":\"error\",\"message\":\"ESP-NOW no inicializado\"}");
-            return;
-        }
-        espNowManager->scanForPeers(5000);
-        openEspNowDiscovery();  // Radio despierta 3 min + PING cada 5s
-        request->send(200, "application/json", "{\"status\":\"scanning\",\"message\":\"Escaneo ESP-NOW iniciado\",\"duration\":5}");
-    });
-    
-    server.on("/api/esp-now/connect", HTTP_POST, [this](AsyncWebServerRequest *request) {}, NULL,
-        [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-            if (!espNowManager || !espNowManager->isInit()) {
-                request->send(503, "application/json", "{\"status\":\"error\",\"message\":\"ESP-NOW no inicializado\"}");
-                return;
-            }
-            String body = "";
-            for (size_t i = 0; i < len; i++) body += (char)data[i];
-            StaticJsonDocument<256> doc;
-            if (deserializeJson(doc, body)) {
-                request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"JSON invalido\"}");
-                return;
-            }
-            String macStr = doc["mac"] | "";
-            uint8_t mac[6];
-            if (macStr.length() < 17 || !espNowManager->stringToMac(macStr, mac)) {
-                request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"MAC invalida\"}");
-                return;
-            }
-            bool added = espNowManager->addPeer(mac);
-            String json = "{\"status\":\"" + String(added ? "connected" : "error") + "\",";
-            json += "\"message\":\"" + String(added ? "Peer conectado: " + macStr : "Error al conectar peer") + "\"}";
-            request->send(added ? 200 : 500, "application/json", json);
-            Serial.println(added ? "🔗 Peer ESP-NOW conectado: " + macStr : "❌ Error conectando peer: " + macStr);
-        });
-    
-    server.on("/api/esp-now/ping", HTTP_POST, [this](AsyncWebServerRequest *request) {}, NULL,
-        [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-            if (!espNowManager || !espNowManager->isInit()) {
-                request->send(503, "application/json", "{\"status\":\"error\",\"message\":\"ESP-NOW no inicializado\"}");
-                return;
-            }
-            String body = "";
-            for (size_t i = 0; i < len; i++) body += (char)data[i];
-            StaticJsonDocument<256> doc;
-            if (deserializeJson(doc, body)) {
-                request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"JSON invalido\"}");
-                return;
-            }
-            String macStr = doc["mac"] | "";
-            uint8_t mac[6];
-            if (!espNowManager->stringToMac(macStr, mac)) {
-                request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"MAC invalida\"}");
-                return;
-            }
-            SensorCommand cmd;
-            cmd.targetSensorId = 0;
-            cmd.commandType = CMD_PING;
-            cmd.commandValue = 0;
-            cmd.timestamp = millis();
-            bool sent = espNowManager->sendCommand(mac, cmd);
-            String json = "{\"status\":\"" + String(sent ? "success" : "failed") + "\",";
-            json += "\"ping_sent\":" + String(sent ? "true" : "false") + ",";
-            json += "\"message\":\"" + String(sent ? "Ping enviado a " + macStr : "Error enviando ping") + "\"}";
-            request->send(200, "application/json", json);
-        });
-    
+
+    // Modo, rol, clave y nombre. Clave vacía = conservar la actual (como la contraseña MQTT).
+    // Los cambios se aplican en loop() en el siguiente segundo
     server.on("/api/esp-now/configure", HTTP_POST, [this](AsyncWebServerRequest *request) {}, NULL,
         [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-            String body = "";
-            for (size_t i = 0; i < len; i++) body += (char)data[i];
-            StaticJsonDocument<256> doc;
-            if (deserializeJson(doc, body)) {
+            int body = collectBody(request, data, len, index, total);
+            if (body == 0) return;
+            StaticJsonDocument<384> doc;
+            if (body < 0 || deserializeJson(doc, (const char*)request->_tempObject)) {
                 request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"JSON invalido\"}");
                 return;
             }
-            ESPNowConfig& cfg = config_manager.getESPNowConfig();
-            if (doc.containsKey("role")) {
-                String role = doc["role"] | "master";
-                cfg.setMasterMode(role == "master");
-                cfg.setSlaveMode(role == "slave");
-                if (espNowManager) espNowManager->setMasterMode(role == "master");
+            EspNowMode mode = ESPNOW_MODE_AUTO;
+            EspNowRole role = ESPNOW_ROLE_EMISOR;
+            bool hasMode = doc.containsKey("mode");
+            bool hasRole = doc.containsKey("role");
+            if (hasMode && !ESPNowConfig::modeFromString(doc["mode"].as<String>(), mode)) {
+                request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"Modo invalido (apagado, manual o automatico)\"}");
+                return;
             }
-            if (doc.containsKey("sensorName")) {
-                cfg.setCustomSensorName(doc["sensorName"] | "");
+            if (hasRole && !ESPNowConfig::roleFromString(doc["role"].as<String>(), role)) {
+                request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"Rol invalido (emisor o receptor)\"}");
+                return;
             }
-            if (doc.containsKey("sendInterval")) {
-                cfg.setSendInterval(doc["sendInterval"] | 60000);
+            String key = doc["key"] | "";
+            if (key.length() > 0 && (key.length() < ESPNowConfig::KEY_MIN_LEN || key.length() > ESPNowConfig::KEY_MAX_LEN)) {
+                request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"La clave debe tener entre 8 y 64 caracteres\"}");
+                return;
             }
-            config_manager.save();
+            String name = doc["sensorName"] | (doc["name"] | "");
+            if (name.length() > 31) {
+                request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"Nombre de hasta 31 caracteres\"}");
+                return;
+            }
+            queueEspNowRequest([&](EspNowRequest& r) {
+                if (hasMode) { r.setMode = true; r.mode = mode; }
+                if (hasRole) { r.setRole = true; r.role = role; }
+                if (key.length() > 0) { r.setKey = true; r.key = key; }
+                if (name.length() > 0) { r.setName = true; r.name = name; }
+            });
             request->send(200, "application/json", "{\"status\":\"configured\",\"message\":\"Configuracion ESP-NOW aplicada\"}");
-            Serial.println("⚙️ Configuracion ESP-NOW actualizada via API");
         });
-    
-    server.on("/api/esp-now/test", HTTP_POST, [this](AsyncWebServerRequest *request) {
-        if (!espNowManager || !espNowManager->isInit()) {
-            request->send(503, "application/json", "{\"status\":\"error\",\"message\":\"ESP-NOW no inicializado\"}");
+
+    // Ventana de emparejamiento de 3 min (radio despierta). Hay que abrirla en las dos
+    // unidades, con la misma clave: solo entonces se aceptan unidades nuevas
+    auto pairHandler = [this](AsyncWebServerRequest *request) {
+        const ESPNowConfig& cfg = config_manager.getESPNowConfig();
+        if (cfg.getMode() == ESPNOW_MODE_OFF) {
+            request->send(409, "application/json", "{\"status\":\"error\",\"message\":\"ESP-NOW esta Apagado: elige Manual o Automatico\"}");
             return;
         }
-        SensorCommand testCmd;
-        testCmd.targetSensorId = 0;
-        testCmd.commandType = CMD_PING;
-        testCmd.commandValue = 0;
-        testCmd.timestamp = millis();
-        espNowManager->sendCommandToAll(testCmd);
-        String json = "{\"status\":\"test_completed\",";
-        json += "\"peers_count\":" + String(espNowManager->getConnectedSensorCount()) + ",";
-        json += "\"packets_sent\":" + String(espNowManager->getPacketsSent()) + ",";
-        json += "\"packets_received\":" + String(espNowManager->getPacketsReceived()) + "}";
-        request->send(200, "application/json", json);
-        Serial.println("🧪 Test ESP-NOW completado");
-    });
-    
-    server.on("/api/esp-now/reset", HTTP_POST, [this](AsyncWebServerRequest *request) {
-        if (!espNowManager) {
-            request->send(503, "application/json", "{\"status\":\"error\",\"message\":\"ESP-NOW no disponible\"}");
+        if (!cfg.hasPairingKey()) {
+            request->send(409, "application/json", "{\"status\":\"error\",\"message\":\"Primero guarda la clave de emparejamiento (la misma en ambas unidades)\"}");
             return;
         }
-        espNowManager->deinitESPNow();
-        delay(100);
-        bool reinit = espNowManager->initESPNow();
-        String json = "{\"status\":\"" + String(reinit ? "reset_ok" : "reset_failed") + "\",";
-        json += "\"message\":\"" + String(reinit ? "ESP-NOW reiniciado correctamente" : "Error reiniciando ESP-NOW") + "\"}";
-        request->send(200, "application/json", json);
-        Serial.println(reinit ? "✅ ESP-NOW reiniciado" : "❌ Error reiniciando ESP-NOW");
-    });
-    
+        _espNowPairingRequested = true;
+        request->send(200, "application/json", "{\"status\":\"pairing\",\"message\":\"Emparejamiento abierto 3 min\",\"duration\":" +
+                      String(ESPNOW_PAIRING_MS / 1000) + "}");
+    };
+    server.on("/api/esp-now/pair", HTTP_POST, pairHandler);
+    server.on("/api/esp-now/scan", HTTP_POST, pairHandler);  // Nombre anterior
+
+    // Agregar / quitar una unidad por MAC (sin la clave correcta sus tramas se siguen descartando)
+    // -1 = MAC inválida, 0 = faltan trozos del cuerpo, 1 = MAC leída
+    auto macFromBody = [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total, uint8_t* mac) {
+        int body = collectBody(request, data, len, index, total);
+        if (body <= 0) return body;
+        StaticJsonDocument<128> doc;
+        if (deserializeJson(doc, (const char*)request->_tempObject)) return -1;
+        return ESPNowManager::getInstance()->stringToMac(doc["mac"] | "", mac) ? 1 : -1;
+    };
+    server.on("/api/esp-now/connect", HTTP_POST, [this](AsyncWebServerRequest *request) {}, NULL,
+        [this, macFromBody](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+            uint8_t mac[6];
+            int r = macFromBody(request, data, len, index, total, mac);
+            if (r == 0) return;
+            if (r < 0) {
+                request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"MAC invalida\"}");
+                return;
+            }
+            queueEspNowRequest([&](EspNowRequest& r) { r.addPeer = true; memcpy(r.addMac, mac, 6); });
+            request->send(200, "application/json", "{\"status\":\"connected\",\"message\":\"Unidad agregada\"}");
+        });
     server.on("/api/esp-now/disconnect", HTTP_POST, [this](AsyncWebServerRequest *request) {}, NULL,
-        [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+        [this, macFromBody](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+            uint8_t mac[6];
+            int r = macFromBody(request, data, len, index, total, mac);
+            if (r == 0) return;
+            if (r < 0) {
+                request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"MAC invalida\"}");
+                return;
+            }
+            queueEspNowRequest([&](EspNowRequest& r) { r.removePeer = true; memcpy(r.removeMac, mac, 6); });
+            request->send(200, "application/json", "{\"status\":\"disconnected\",\"message\":\"Unidad eliminada\"}");
+        });
+
+    server.on("/api/esp-now/ping", HTTP_POST, [this](AsyncWebServerRequest *request) {}, NULL,
+        [this, macFromBody](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+            uint8_t mac[6];
+            int r = macFromBody(request, data, len, index, total, mac);
+            if (r == 0) return;
             if (!espNowManager || !espNowManager->isInit()) {
                 request->send(503, "application/json", "{\"status\":\"error\",\"message\":\"ESP-NOW no inicializado\"}");
                 return;
             }
-            String body = "";
-            for (size_t i = 0; i < len; i++) body += (char)data[i];
-            StaticJsonDocument<256> doc;
-            if (deserializeJson(doc, body)) {
-                request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"JSON invalido\"}");
-                return;
-            }
-            String macStr = doc["mac"] | "";
-            uint8_t mac[6];
-            if (!espNowManager->stringToMac(macStr, mac)) {
+            if (r < 0) {
                 request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"MAC invalida\"}");
                 return;
             }
-            bool removed = espNowManager->removePeer(mac);
-            String json = "{\"status\":\"" + String(removed ? "disconnected" : "error") + "\",";
-            json += "\"message\":\"" + String(removed ? "Peer desconectado" : "Error al desconectar") + "\"}";
-            request->send(removed ? 200 : 500, "application/json", json);
-            Serial.println(removed ? "🔌 Peer desconectado: " + macStr : "❌ Error desconectando: " + macStr);
+            bool sent = espNowManager->sendPing(mac);
+            request->send(200, "application/json", "{\"status\":\"" + String(sent ? "success" : "failed") +
+                          "\",\"ping_sent\":" + String(sent ? "true" : "false") + "}");
         });
+
+    // Pruebas: ?kind=ping (defecto) | replay (reenvía la última trama tal cual) |
+    // badkey (trama firmada con otra clave). El otro equipo debe contarlas en
+    // stats.rx_replay / stats.rx_bad_auth de /api/esp-now/status
+    // kind=wifioff&s=N (60–1800): caída de WiFi simulada para probar el respaldo Automático
+    // sin desconectar el router. La unidad no responde por HTTP hasta que vence
+    server.on("/api/esp-now/test", HTTP_POST, [this](AsyncWebServerRequest *request) {
+        if (request->hasParam("kind") && request->getParam("kind")->value() == "wifioff") {
+            long s = request->hasParam("s") ? request->getParam("s")->value().toInt() : 420;
+            if (s < 60 || s > 1800) {
+                request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"s entre 60 y 1800\"}");
+                return;
+            }
+            _wifiSimRequestMs = (uint32_t)s * 1000UL;
+            request->send(200, "application/json", "{\"status\":\"scheduled\",\"kind\":\"wifioff\",\"seconds\":" + String(s) + "}");
+            return;
+        }
+        if (!espNowManager || !espNowManager->isInit()) {
+            request->send(503, "application/json", "{\"status\":\"error\",\"message\":\"ESP-NOW no inicializado\"}");
+            return;
+        }
+        String kind = request->hasParam("kind") ? request->getParam("kind")->value() : String("ping");
+        bool ok;
+        if (kind == "replay") ok = espNowManager->testReplayLast();
+        else if (kind == "badkey") ok = espNowManager->testBadKey();
+        else { kind = "ping"; ok = espNowManager->pingAll(); }
+        request->send(200, "application/json", "{\"status\":\"" + String(ok ? "sent" : "failed") +
+                      "\",\"kind\":\"" + kind + "\",\"packets_sent\":" + String(espNowManager->getPacketsSent()) + "}");
+        Serial.printf("🧪 Prueba ESP-NOW '%s': %s\n", kind.c_str(), ok ? "enviada" : "fallo");
+    });
+
+    server.on("/api/esp-now/reset", HTTP_POST, [this](AsyncWebServerRequest *request) {
+        _espNowResetRequested = true;
+        request->send(200, "application/json", "{\"status\":\"reset_ok\",\"message\":\"ESP-NOW se reinicia en el siguiente segundo\"}");
+    });
 }
 
 void AppManager::setupCaptiveDetectionRoutes() {
@@ -1780,6 +2131,15 @@ void AppManager::initializeServices() {
                 output += "Heap libre: " + String(ESP.getFreeHeap()) + " bytes\n";
                 output += "Temp interna: " + String(temperatureRead(), 1) + " C (aprox)\n";
                 output += "CPU: " + String(getCpuFrequencyMhz()) + " MHz | Modem sleep: " + String(_wifiPowerSave ? "ON" : "OFF") + "\n";
+                {
+                    const ESPNowConfig& ec = config_manager.getESPNowConfig();
+                    output += "ESP-NOW: " + String(ESPNowConfig::modeToString(ec.getMode())) + ", " +
+                              ESPNowConfig::roleToString(ec.getRole()) + ", " +
+                              String((espNowManager && espNowManager->isInit()) ? "encendido" : "apagado") +
+                              (ec.hasPairingKey() ? "" : " (sin clave)") + ", " +
+                              String(ec.getPeers().size()) + " unidades, canal guardado " + String(ec.getLastChannel()) +
+                              " (detalle en /espnow)\n";
+                }
                 output += "Uptime: " + String(millis() / 1000) + " seg";
             } else if (command == "sensor") {
                 String sensorJson = sensor_manager.getSensorJson("LiquidLevel");
@@ -2030,21 +2390,25 @@ void AppManager::loop() {
         }
     }
     
-    // ESP-NOW + ahorro de energía WiFi (cada 5s): PING durante el descubrimiento,
-    // cierre de la ventana y modem sleep según haya o no peers
-    static unsigned long lastPowerSaveCheck = 0;
-    if (!portal_active && millis() - lastPowerSaveCheck > 5000) {
-        if (_espNowDiscovering) {
-            if (millis() - _espNowDiscoveryStart >= ESPNOW_DISCOVERY_MS) {
-                _espNowDiscovering = false;
-                Serial.printf("🔍 ESP-NOW: descubrimiento terminado (%s)\n",
-                              espNowManager->hasPeers() ? "peers encontrados" : "sin peers");
-            } else {
-                espNowManager->broadcastPing();
+    // ESP-NOW: recepción autenticada y emparejamiento (cada vuelta); modo, respaldo sin
+    // WiFi, reconexión espaciada y modem sleep (cada 1 s)
+    if (!portal_active && espNowManager) {
+        espNowManager->loop();
+        if (_wifiRetryInProgress &&
+            (_wifiRetryEnded || millis() - _wifiRetryStart >= WIFI_RETRY_TIMEOUT_MS)) {
+            finishWifiRetry();
+        }
+        static unsigned long lastEspNowCheck = 0;
+        if (millis() - lastEspNowCheck >= 1000) {
+            updateEspNow();
+            lastEspNowCheck = millis();
+            // Receptor con tinacos remotos: refrescar la línea alterna del OLED
+            if (!_installationMode && !display_manager.isDisplaySleeping() &&
+                espNowManager->isInit() && config_manager.getESPNowConfig().isReceptor() &&
+                espNowManager->getConnectedSensorCount() > 0) {
+                updateSensorDisplay();
             }
         }
-        updateWiFiPowerSave();
-        lastPowerSaveCheck = millis();
     }
 
     // Monitoreo de memoria cada 10 segundos
@@ -2280,20 +2644,21 @@ void AppManager::loop() {
                     WebSerial.println(line);
                 }
                 
-                // Broadcast datos del sensor local via ESP-NOW. Siempre, no solo con peers:
-                // exigir peers impedía que dos unidades se descubrieran (nadie transmitía primero)
-                if (espNowManager && espNowManager->isInit()) {
-                    ESPNowConfig& espCfg = config_manager.getESPNowConfig();
-                    SensorData espData;
+                // Lectura local a las unidades emparejadas (unicast autenticado, con ACK).
+                // Enviar funciona aunque la radio esté en modem sleep
+                if (espNowManager && espNowManager->isInit() && espNowManager->hasPeers()) {
+                    const ESPNowConfig& espCfg = config_manager.getESPNowConfig();
+                    EspNowSensorPayload espData = {};
                     espData.sensorId = espCfg.getSensorID();
-                    espData.liquidLevel = pct;
+                    espData.flags = (_liquidSensor->hasValidReading() ? ESPNOW_FLAG_VALID : 0) |
+                                    (isFillingDetected ? ESPNOW_FLAG_FILLING : 0) |
+                                    (sensorEstableNow ? ESPNOW_FLAG_STABLE : 0);
+                    espData.percent = pct;
                     espData.distance = dist;
                     espData.liters = lit;
-                    espData.timestamp = millis();
-                    strncpy(espData.sensorName, espCfg.getSensorName().c_str(), 31);
-                    espData.sensorName[31] = '\0';
-                    espData.signalStrength = (uint8_t)min(100, abs(WiFi.RSSI()));
-                    espNowManager->broadcastData(espData);
+                    espData.rssi = WiFi.status() == WL_CONNECTED ? (int8_t)WiFi.RSSI() : 0;
+                    strncpy(espData.name, espNowManager->getLocalName().c_str(), sizeof(espData.name) - 1);
+                    espNowManager->sendSensorToPeers(espData);
                 }
             }
             
@@ -2307,27 +2672,13 @@ void AppManager::loop() {
                 updateHAData(isFillingDetected);
             }
             
-            // ESP-NOW: limpieza periodica y time sync (solo si hay peers)
-            if (espNowManager && espNowManager->isInit()) {
-                // Limpiar sensores inactivos cada 60s
+            // ESP-NOW: olvidar tinacos remotos sin lecturas (el TimeSync de antes mandaba
+            // millis() como hora y nadie lo usaba: se quitó)
+            if (espNowManager) {
                 static unsigned long lastEspNowCleanup = 0;
                 if (millis() - lastEspNowCleanup > 60000) {
-                    espNowManager->clearOldSensors(300000); // 5 min timeout
+                    espNowManager->clearOldSensors(ESPNOW_REMOTE_FRESH_MS);
                     lastEspNowCleanup = millis();
-                }
-                // Time sync broadcast si es master con NTP y hay peers (cada 60s)
-                if (espNowManager->hasPeers() && config_manager.getESPNowConfig().isMaster() && ntpSync && ntpSync->isReady()) {
-                    static unsigned long lastTimeSync = 0;
-                    if (millis() - lastTimeSync > 60000) {
-                        TimeSyncData tsd;
-                        tsd.masterTimestamp = millis();
-                        tsd.localTimestamp = millis();
-                        tsd.timezoneOffset = -6; // Mexico CST
-                        tsd.isNTPSynced = true;
-                        tsd.signalQuality = 100;
-                        espNowManager->broadcastTimeSync(tsd);
-                        lastTimeSync = millis();
-                    }
                 }
             }
             
@@ -2586,23 +2937,24 @@ void AppManager::updateSensorDisplay(bool forceRedraw) {
         display_manager.setFont(ArialMT_Plain_10);
         display_manager.setTextAlignment(TEXT_ALIGN_LEFT);
         
-        // Línea 1: Título con rol ESP-NOW (estático)
+        // Línea 1: Título con rol ESP-NOW mientras está encendido (E = emisor, R = receptor)
         String title = "SENSOR NIVEL LIQUIDO";
-        if (config_manager.getESPNowConfig().isMaster()) {
-            title += " [M]";
-        } else if (config_manager.getESPNowConfig().isSlave()) {
-            title += " [S]";
+        if (espNowManager && espNowManager->isInit()) {
+            title += config_manager.getESPNowConfig().isReceptor() ? " [R]" : " [E]";
         }
         display_manager.drawString(0, 0, title);
-        
+
         if (!sensorValid) {
             // Mostrar error del sensor
             display_manager.drawString(0, 12, "SENSOR ERROR");
             display_manager.drawString(0, 24, "Verificar conexion");
             display_manager.drawString(0, 36, "Trig/Echo pins");
-            
-            // Mostrar info de red en caso de error
-            if (WiFi.status() == WL_CONNECTED) {
+
+            // Mostrar info de red (o el tinaco remoto) en caso de error
+            String remote = currentRemoteLine();
+            if (remote.length() > 0) {
+                display_manager.drawString(0, 48, remote);
+            } else if (WiFi.status() == WL_CONNECTED) {
                 display_manager.drawString(0, 48, "WiFi: " + WiFi.SSID());
             } else {
                 display_manager.drawString(0, 48, "Sin WiFi");
@@ -2680,7 +3032,10 @@ void AppManager::updateSensorDisplay(bool forceRedraw) {
     } else {
         statusLine = "Sin WiFi";
     }
-    
+    // Receptor ESP-NOW: alterna con los tinacos remotos (cada 4 s)
+    String remoteLine = currentRemoteLine();
+    if (remoteLine.length() > 0) statusLine = remoteLine;
+
     // Solo actualizar línea de estado si cambió
     if (statusLine != lastStatus) {
         display_manager.setColor(0);

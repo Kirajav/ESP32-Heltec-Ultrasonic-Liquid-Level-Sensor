@@ -161,6 +161,7 @@ bool HomeAssistantMQTT::reconnect() {
 
     if (connected) {
         _connected = true;
+        _connectionId++;
         Serial.printf("[HA-MQTT] ✅ Conectado a %s:%d\n", 
                       _config.brokerHost.c_str(), _config.brokerPort);
 
@@ -412,4 +413,78 @@ bool HomeAssistantMQTT::publishPumpState(bool on) {
     String basePath = _stateTopic.substring(0, _stateTopic.lastIndexOf('/'));
     String pumpTopic = basePath + "/pump_state";
     return _mqttClient.publish(pumpTopic.c_str(), on ? "ON" : "OFF", true);
+}
+
+// ============================================================
+// Tinaco remoto (ESP-NOW → MQTT)
+// ============================================================
+
+void HomeAssistantMQTT::publishRemoteDiscovery(const String& rmac, const char* name) {
+    struct Entity { const char* id; const char* label; const char* tpl; const char* unit; const char* devClass; const char* icon; };
+    static const Entity entities[] = {
+        {"litros",     "Litros de Agua", "{{ value_json.litros }}",       "L", "volume_storage", "mdi:water"},
+        {"porcentaje", "Nivel (%)",      "{{ value_json.porcentaje }}",   "%", nullptr,          "mdi:water-percent"},
+        {"distancia",  "Distancia",      "{{ value_json.distancia_cm }}", "cm", "distance",      "mdi:ruler"},
+    };
+    String devId = "nivel_tinaco_" + rmac + "_espnow";
+    String stateTopic = "nivel_tinaco/" + rmac + "/espnow/state";
+    String devName = String(name && *name ? name : rmac.c_str()) + " (ESP-NOW)";
+    for (const auto& e : entities) {
+        StaticJsonDocument<768> doc;
+        doc["name"] = e.label;
+        doc["unique_id"] = devId + "_" + e.id;
+        doc["state_topic"] = stateTopic;
+        // Disponible mientras este receptor esté en línea y lleguen lecturas (15 min)
+        doc["availability_topic"] = _availTopic;
+        doc["expire_after"] = 900;
+        doc["value_template"] = e.tpl;
+        doc["unit_of_measurement"] = e.unit;
+        if (e.devClass) doc["device_class"] = e.devClass;
+        doc["icon"] = e.icon;
+        JsonObject device = doc.createNestedObject("device");
+        device.createNestedArray("identifiers").add(devId);
+        device["name"] = devName;
+        device["manufacturer"] = "ESP32 DIY";
+        device["model"] = "Heltec WiFi Kit 32 (vía ESP-NOW)";
+        device["via_device"] = _uniqueId;
+        String payload;
+        serializeJson(doc, payload);
+        String topic = "homeassistant/sensor/" + devId + "_" + e.id + "/config";
+        _mqttClient.publish(topic.c_str(), payload.c_str(), true);
+    }
+    Serial.printf("[HA-MQTT] 📡 Discovery tinaco remoto %s (%s)\n", rmac.c_str(), devName.c_str());
+}
+
+bool HomeAssistantMQTT::publishRemoteSensor(const uint8_t* mac, const char* name,
+                                            float litros, float porcentaje, float distancia) {
+    if (!isConnected()) return false;
+    char macStr[13];
+    snprintf(macStr, sizeof(macStr), "%02x%02x%02x%02x%02x%02x",
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    String rmac(macStr);
+
+    // Discovery una vez por conexión y por unidad remota
+    RemoteDiscovery* slot = nullptr;
+    for (uint8_t i = 0; i < _remoteCount; i++) {
+        if (memcmp(_remotes[i].mac, mac, 6) == 0) { slot = &_remotes[i]; break; }
+    }
+    if (!slot) {
+        if (_remoteCount >= MAX_REMOTES) return false;
+        slot = &_remotes[_remoteCount++];
+        memcpy(slot->mac, mac, 6);
+        slot->connectionId = 0;
+    }
+    if (slot->connectionId != _connectionId) {
+        publishRemoteDiscovery(rmac, name);
+        slot->connectionId = _connectionId;
+    }
+
+    StaticJsonDocument<256> doc;
+    doc["litros"] = serialized(String(litros, 1));
+    doc["porcentaje"] = serialized(String(porcentaje, 1));
+    doc["distancia_cm"] = serialized(String(distancia, 1));
+    String payload;
+    serializeJson(doc, payload);
+    String topic = "nivel_tinaco/" + rmac + "/espnow/state";
+    return _mqttClient.publish(topic.c_str(), payload.c_str());
 }

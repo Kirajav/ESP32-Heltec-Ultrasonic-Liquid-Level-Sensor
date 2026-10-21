@@ -6,6 +6,106 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
 ---
 
+## [3.5.0] — 2026-10-21
+
+ESP-NOW opcional y autenticado. Con WiFi, el modem sleep (≈0.059 A) vuelve a ser el estado normal.
+En 3.4.x cualquier peer ESP-NOW lo desactivaba, y las dos unidades quedaban fijas en ≈0.12 A.
+
+Verificado en las dos unidades (receptor .82, emisor .83):
+
+- **Emisor con ESP-NOW encendido** (modo Manual): `wifi_sleep: true`, 0 envíos fallidos, y el FNB58
+  marcó en pantalla ≈0.05 A (la base del modem sleep)
+- **Durante el emparejamiento**, ≈0.12 A
+- **Caída de WiFi simulada de 7 min** en modo Automático: a los 2 min se encendió ESP-NOW en el canal
+  guardado, el receptor mostró el tinaco remoto en el OLED, y al volver el WiFi las dos apagaron
+  ESP-NOW y regresaron al modem sleep
+- **Home Assistant** mostró el tinaco remoto
+- **Filtrado:** se descartaron las tramas con otra clave, las repetidas y las de una MAC no emparejada
+
+### 🔗 Modos y roles
+
+- **Modo** (`/espnow` o `POST /api/esp-now/configure`):
+  - **Automático** (por defecto, también para configs anteriores): apagado mientras hay WiFi. Si el
+    WiFi falta 2 min, se enciende; al volver el WiFi se apaga. Sin clave ni unidades emparejadas no
+    hace nada, así que actualizar desde 3.4.x no cambia nada hasta emparejar
+  - **Manual**: siempre encendido (lo que hacía 3.4.x)
+  - **Apagado**: ESP-NOW nunca se inicializa
+- **Rol según la radio**: en modem sleep ESP-NOW puede enviar pero no recibir.
+  - **Emisor** (p. ej. la azotea): solo transmite su lectura y conserva el modem sleep
+  - **Receptor**: mantiene la radio despierta mientras ESP-NOW está encendido
+  - Los antiguos `master`/`slave` se autodetectaban (todas las unidades con WiFi eran master),
+    así que no se migran: el rol arranca como emisor. La API sigue aceptando `master` (= receptor)
+    y `slave` (= emisor)
+- **Qué hace el receptor con los tinacos remotos**:
+  - **OLED**: la línea inferior alterna cada 4 s entre la hora/WiFi y cada tinaco remoto
+    (`Azotea 85% 1100L`). El título muestra `[E]`/`[R]` mientras ESP-NOW está encendido
+  - **Home Assistant**: en modo Manual con WiFi, publica cada tinaco remoto como dispositivo
+    aparte `<nombre> (ESP-NOW)` (litros, %, distancia), vía `nivel_tinaco/{mac}/espnow/state`.
+    Pasa a no disponible si deja de llegar 15 min
+  - **Web**: `/espnow` y `/multi-sensor-data`
+
+### 🔐 Autenticación
+
+Hasta 3.4.2 no había ninguna protección:
+
+- `encrypt=false` y despacho solo por tamaño del payload
+- Cualquier remitente se agregaba como peer en cualquier momento
+
+Así, cualquier ESP32 cercano, con cualquier firmware, podía inyectar tinacos falsos y desactivar
+el ahorro de energía. Ahora:
+
+- **Clave de emparejamiento** (8 a 64 caracteres), la misma en todas las unidades. Sin clave,
+  ESP-NOW no se enciende
+- **Trama nueva**: cabecera `TK` + versión + tipo + secuencia, y al final un HMAC-SHA256 de
+  12 bytes calculado con la clave sobre la MAC de origen, la cabecera y el payload
+- **Se descartan**:
+  - Tramas de MACs no emparejadas
+  - Tramas con HMAC incorrecto
+  - Repeticiones: la secuencia de cada unidad solo crece, también entre reinicios, gracias a
+    una época de arranque guardada en NVS
+- **Emparejamiento explícito**: botón Emparejar (ventana de 3 min) en las dos unidades. Solo
+  dentro de la ventana, y con la clave correcta, se agregan unidades nuevas. Se acabó la ventana
+  automática de 3.4.x en cada arranque
+- **Contadores** en `/api/esp-now/status` → `stats`: aceptadas, clave incorrecta, repetidas,
+  MAC no emparejada, otro protocolo. `POST /api/esp-now/test?kind=replay|badkey` sirve para
+  comprobar el filtrado desde la otra unidad
+- La clave no se devuelve nunca (solo `key_set`); enviarla vacía conserva la actual, igual que
+  la contraseña MQTT. Por ESP-NOW nunca viajan credenciales WiFi ni MQTT
+- Se quitó el TimeSync: enviaba `millis()` como hora y nadie lo usaba
+- Los ejemplos de `examples/` usan el protocolo anterior y quedan marcados como tales
+
+### 📻 Canal sin WiFi
+
+- ESP-NOW usa el canal del router; se guarda en la config (`lastChannel`) cada vez que cambia
+- Sin WiFi, el auto-reconnect de Arduino escanea todos los canales sin parar y rompe ESP-NOW.
+  Con ESP-NOW encendido y el WiFi caído hace 2 min:
+  - Se apaga ese escaneo continuo
+  - La radio queda en el último canal
+  - Se intenta el router cada 60 s, empezando el escaneo rápido por ese canal. El intento termina
+    con el evento de desconexión, unos 2 s fuera del canal
+- Al volver el WiFi se restaura la reconexión automática normal
+- Si una unidad **arranca** sin router, sigue abriendo el portal cautivo como antes
+
+### 🌐 Web y API
+
+- **Nueva página `/espnow`**, embebida en el firmware (no hace falta subir el filesystem):
+  - Estado, modo, rol, nombre y clave
+  - Botón Emparejar
+  - Unidades emparejadas (con Quitar) y tinacos remotos
+  - Contadores y botones de prueba
+- `/espnow-manager` redirige a `/espnow`
+- `POST /api/esp-now/pair` abre la ventana de emparejamiento (`/scan` sigue como alias).
+  `/connect` y `/disconnect` agregan o quitan unidades por MAC, y ahora persisten
+- `/api/status`: `espnow_discovery` se reemplaza por `espnow_mode`, `espnow_active` y `espnow_pairing`
+- **Fix: los POST de ESP-NOW fallaban con "JSON invalido"** cuando el navegador mandaba el cuerpo en
+  varios segmentos TCP: el handler parseaba solo el primero. Ahora junta los trozos antes de parsear
+- `POST /api/esp-now/test?kind=wifioff&s=N` (60–1800 s) simula una caída de WiFi: desconecta del
+  router y bloquea los reintentos N segundos, para probar el respaldo Automático sin tumbar la red
+- Los cambios de ESP-NOW hechos desde la web se aplican en el loop principal, y los guardados de
+  `/config.json` van serializados con un mutex (el loop ahora también guarda canal y unidades)
+
+---
+
 ## [3.4.2] — 2026-10-20
 
 ### 🔧 Modo instalación: distancia cruda de verdad

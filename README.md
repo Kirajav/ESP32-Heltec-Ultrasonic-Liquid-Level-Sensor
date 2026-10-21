@@ -13,7 +13,7 @@ Sistema de monitoreo de nivel de líquido (tinacos, cisternas, contenedores) bas
 - **Dashboard web** con visualización SVG animada (tanque, cisterna, IBC) e historial
 - **Portal cautivo** multilenguaje (ES/EN/FR) para la configuración inicial
 - **MQTT / Home Assistant** local con Auto-Discovery (sensores + switch "Bomba de Agua"), reconexión automática
-- **ESP-NOW** entre unidades, con descubrimiento automático
+- **ESP-NOW** entre unidades, autenticado con clave de emparejamiento, como respaldo sin WiFi (modo Automático) o siempre encendido (Manual)
 - **Display OLED** 128x64 SSD1306 con auto-sleep
 - **OTA** (firmware y filesystem) vía ElegantOTA, con reinicio automático
 - **WebSerial** para depuración remota desde el navegador (`help` lista los comandos)
@@ -73,7 +73,7 @@ Después de configurar WiFi:
 | Dashboard | `http://[IP]/` |
 | Actualización OTA | `http://[IP]/update` |
 | WebSerial | `http://[IP]/webserial` |
-| Administración ESP-NOW (Escanear) | `http://[IP]/espnow-manager` |
+| ESP-NOW: modo, rol, clave, emparejar | `http://[IP]/espnow` |
 | Dashboard multi-sensor | `http://[IP]/espnow_dashboard` |
 | Instalación (distancia cruda ~1/s) | `http://[IP]/instalacion` |
 
@@ -92,11 +92,27 @@ Si el broker se cae (reinicio de HA), el ESP32 reintenta indefinidamente (backof
 
 ## ESP-NOW (varias unidades)
 
-Las unidades deben estar en el **mismo canal WiFi**; conectarlas al mismo router lo garantiza.
+Enlace directo entre unidades, sin router. Se configura en `http://[IP]/espnow` (página incluida en el firmware).
 
-1. Enciende las unidades. Durante los **primeros 3 minutos** cada una se anuncia (PING cada 5 s) y escucha.
-2. Si una ya llevaba tiempo encendida, pulsa **Escanear** en su página ESP-NOW: abre otra ventana de 3 minutos.
-3. Al encontrarse quedan como *peers*; desde entonces la radio se mantiene despierta para no perder paquetes (sube el consumo).
+| Modo | Comportamiento |
+|---|---|
+| **Automático** (por defecto) | Apagado mientras hay WiFi. Si el WiFi falta 2 min, se enciende en el último canal del router; al volver el WiFi se apaga |
+| **Manual** | Siempre encendido (con WiFi, en el canal del router) |
+| **Apagado** | Nunca se inicializa |
+
+| Rol | Radio | Uso |
+|---|---|---|
+| **Emisor** | Puede dormir (modem sleep): enviar funciona dormida | Solo transmite su tinaco (p. ej. la azotea) |
+| **Receptor** | Despierta mientras ESP-NOW está encendido (~0.12 A): recibir no funciona dormida | Muestra los tinacos remotos en el OLED (alterna cada 4 s con la línea de estado), en `/espnow` y, en modo Manual con WiFi, los publica en Home Assistant como dispositivo aparte `<nombre> (ESP-NOW)` |
+
+Emparejar:
+
+1. En cada unidad, elige modo y rol y escribe la **misma clave de emparejamiento** (8 a 64 caracteres).
+2. Pulsa **Emparejar** en las dos con menos de 3 minutos de diferencia. Solo dentro de esa ventana, y con la clave correcta, se agregan unidades nuevas.
+
+Seguridad: cada trama lleva número de secuencia y un HMAC-SHA256 truncado con la clave. Se descartan las de MACs no emparejadas, las de otra clave y las repetidas (los contadores están en `/espnow`). La clave nunca se devuelve por la API, y por ESP-NOW nunca viajan credenciales WiFi ni MQTT.
+
+Sin WiFi, el auto-reconnect de Arduino escanea sin parar y saltaría de canal; con ESP-NOW encendido, el firmware lo cambia por un intento al router cada 60 s y el resto del tiempo deja la radio en el último canal conocido. Si una unidad **arranca** sin router, sigue abriendo el portal cautivo como antes (el respaldo cubre caídas de WiFi con la unidad ya funcionando).
 
 ## Consumo
 
@@ -110,7 +126,7 @@ Medido con un FNIRSI FNB58 (cargador de 5.2 V, pantalla apagada). La lectura ini
 
 Ahorro: −63 % de promedio a promedio, o −65 % tomando la lectura inicial como referencia. La pantalla del medidor marca casi siempre la base de ~0.047 A, porque la radio despierta a ~0.12 A solo el 15 % del tiempo; el promedio real es 0.059 A.
 
-El ahorro de energía WiFi (modem sleep) se desactiva solo con peers ESP-NOW o durante el descubrimiento; con la radio despierta el consumo es de 0.125 A. A cambio, el ping sube a ~150 ms, cosa que no afecta al sensor.
+El ahorro de energía WiFi (modem sleep) se desactiva solo en un receptor con ESP-NOW encendido o durante la ventana de emparejamiento; con la radio despierta el consumo es de 0.12 A. A cambio del ahorro, el ping sube a ~150 ms, cosa que no afecta al sensor.
 
 Perfil de corriente por proceso (arranque, lectura, ping, HTTP, OLED, ESP-NOW), temperaturas y datos crudos: [wiki: Consumo y perfil de corriente](https://github.com/Kirajav/ESP32-Heltec-Ultrasonic-Liquid-Level-Sensor/wiki/Consumo-y-Perfil-de-Corriente).
 
@@ -126,8 +142,9 @@ Perfil de corriente por proceso (arranque, lectura, ping, HTTP, OLED, ESP-NOW), 
 | GET/POST | `/api/mqtt/config` | Configuración MQTT |
 | POST | `/api/calibrate-bottom` | Calibrar fondo del contenedor vacío |
 | POST | `/api/restart` | Reiniciar |
-| GET | `/api/esp-now/status` | Estado ESP-NOW |
-| POST | `/api/esp-now/scan` | Abrir ventana de descubrimiento (3 min) |
+| GET | `/api/esp-now/status` | Estado ESP-NOW: modo, rol, canal, unidades, tinacos remotos, contadores (`key_set`, nunca la clave) |
+| POST | `/api/esp-now/configure` | `mode` (`apagado`/`manual`/`automatico`), `role` (`emisor`/`receptor`), `key` (vacía = conservar), `sensorName` |
+| POST | `/api/esp-now/pair` | Abrir ventana de emparejamiento (3 min) |
 
 La lista completa está en la [Wiki](https://github.com/Kirajav/ESP32-Heltec-Ultrasonic-Liquid-Level-Sensor/wiki).
 

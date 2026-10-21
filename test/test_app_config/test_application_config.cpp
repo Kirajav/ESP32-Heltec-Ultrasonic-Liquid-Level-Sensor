@@ -149,8 +149,11 @@ void test_access_system_config() {
 
 void test_access_espnow_config() {
     ESPNowConfig& espnow = config->getESPNowConfig();
-    espnow.setMasterMode(true);
-    TEST_ASSERT_TRUE(espnow.isMaster());
+    espnow.setRole(ESPNOW_ROLE_RECEPTOR);
+    TEST_ASSERT_TRUE(espnow.isReceptor());
+    TEST_ASSERT_FALSE(espnow.setPairingKey("corta"));
+    TEST_ASSERT_TRUE(espnow.setPairingKey("clave-de-prueba"));
+    TEST_ASSERT_TRUE(espnow.hasPairingKey());
 }
 
 // ============================================================
