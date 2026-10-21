@@ -99,6 +99,9 @@ el ahorro de energía. Ahora:
 - `/api/status`: `espnow_discovery` se reemplaza por `espnow_mode`, `espnow_active` y `espnow_pairing`
 - **Fix: los POST de ESP-NOW fallaban con "JSON invalido"** cuando el navegador mandaba el cuerpo en
   varios segmentos TCP: el handler parseaba solo el primero. Ahora junta los trozos antes de parsear
+- **Mismo fix en el resto de los POST con cuerpo JSON** (`/api/sensor/config`, `/api/mqtt/config`,
+  `/api/wifi/add`, `/default` y `/remove`, `/api/ap/config` y `/api/system/config`): con el cuerpo
+  partido respondían 400 "JSON inválido". Verificado en la .82 con el cuerpo en 2 y 3 trozos
 - `POST /api/esp-now/test?kind=wifioff&s=N` (60–1800 s) simula una caída de WiFi: desconecta del
   router y bloquea los reintentos N segundos, para probar el respaldo Automático sin tumbar la red
 - Los cambios de ESP-NOW hechos desde la web se aplican en el loop principal, y los guardados de

@@ -1080,14 +1080,11 @@ void AppManager::setupConditionalRoutes() {
             return;
         }
         
-        String body = "";
-        for (size_t i = 0; i < len; i++) {
-            body += (char)data[i];
-        }
-        
+        int body = collectBody(request, data, len, index, total);
+        if (body == 0) return;
+
         StaticJsonDocument<200> doc;
-        DeserializationError error = deserializeJson(doc, body);
-        if (error) {
+        if (body < 0 || deserializeJson(doc, (const char*)request->_tempObject)) {
             request->send(400, "application/json", "{\"success\":false,\"message\":\"JSON inválido\"}");
             return;
         }
@@ -1150,14 +1147,11 @@ void AppManager::setupConditionalRoutes() {
             return;
         }
         
-        String body = "";
-        for (size_t i = 0; i < len; i++) {
-            body += (char)data[i];
-        }
-        
+        int body = collectBody(request, data, len, index, total);
+        if (body == 0) return;
+
         StaticJsonDocument<200> doc;
-        DeserializationError error = deserializeJson(doc, body);
-        if (error) {
+        if (body < 0 || deserializeJson(doc, (const char*)request->_tempObject)) {
             request->send(400, "application/json", "{\"success\":false,\"message\":\"JSON inválido\"}");
             return;
         }
@@ -1182,14 +1176,11 @@ void AppManager::setupConditionalRoutes() {
             return;
         }
         
-        String body = "";
-        for (size_t i = 0; i < len; i++) {
-            body += (char)data[i];
-        }
-        
+        int body = collectBody(request, data, len, index, total);
+        if (body == 0) return;
+
         StaticJsonDocument<200> doc;
-        DeserializationError error = deserializeJson(doc, body);
-        if (error) {
+        if (body < 0 || deserializeJson(doc, (const char*)request->_tempObject)) {
             request->send(400, "application/json", "{\"success\":false,\"message\":\"JSON inválido\"}");
             return;
         }
@@ -1209,14 +1200,11 @@ void AppManager::setupConditionalRoutes() {
     // Endpoint para configuración del sensor
     server.on("/api/sensor/config", HTTP_POST, [this](AsyncWebServerRequest *request) {}, NULL,
     [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-        String body = "";
-        for (size_t i = 0; i < len; i++) {
-            body += (char)data[i];
-        }
-        
+        int body = collectBody(request, data, len, index, total);
+        if (body == 0) return;
+
         StaticJsonDocument<768> doc; // Tamaño para todos los campos incluyendo filtro sigma
-        DeserializationError error = deserializeJson(doc, body);
-        if (error) {
+        if (body < 0 || deserializeJson(doc, (const char*)request->_tempObject)) {
             request->send(400, "application/json", "{\"success\":false,\"message\":\"JSON inválido\"}");
             return;
         }
@@ -1416,14 +1404,11 @@ void AppManager::setupConditionalRoutes() {
             return;
         }
         
-        String body = "";
-        for (size_t i = 0; i < len; i++) {
-            body += (char)data[i];
-        }
-        
+        int body = collectBody(request, data, len, index, total);
+        if (body == 0) return;
+
         StaticJsonDocument<200> doc;
-        DeserializationError error = deserializeJson(doc, body);
-        if (error) {
+        if (body < 0 || deserializeJson(doc, (const char*)request->_tempObject)) {
             request->send(400, "application/json", "{\"success\":false,\"message\":\"JSON inválido\"}");
             return;
         }
@@ -1452,14 +1437,11 @@ void AppManager::setupConditionalRoutes() {
             return;
         }
         
-        String body = "";
-        for (size_t i = 0; i < len; i++) {
-            body += (char)data[i];
-        }
-        
+        int body = collectBody(request, data, len, index, total);
+        if (body == 0) return;
+
         StaticJsonDocument<200> doc;
-        DeserializationError error = deserializeJson(doc, body);
-        if (error) {
+        if (body < 0 || deserializeJson(doc, (const char*)request->_tempObject)) {
             request->send(400, "application/json", "{\"success\":false,\"message\":\"JSON inválido\"}");
             return;
         }
@@ -1516,16 +1498,12 @@ void AppManager::setupConditionalRoutes() {
     // POST: Guardar configuración MQTT
     server.on("/api/mqtt/config", HTTP_POST, [this](AsyncWebServerRequest *request) {}, NULL,
     [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+        int body = collectBody(request, data, len, index, total);
+        if (body == 0) return;
         Serial.println("🏠 POST /api/mqtt/config");
-        
-        String body = "";
-        for (size_t i = 0; i < len; i++) {
-            body += (char)data[i];
-        }
-        
+
         StaticJsonDocument<512> doc;
-        DeserializationError error = deserializeJson(doc, body);
-        if (error) {
+        if (body < 0 || deserializeJson(doc, (const char*)request->_tempObject)) {
             request->send(400, "application/json", "{\"success\":false,\"message\":\"JSON inválido\"}");
             return;
         }
